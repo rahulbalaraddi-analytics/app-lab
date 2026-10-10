@@ -1,6 +1,12 @@
 package com.applab.ideadrop.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import com.applab.ideadrop.audio.RecordingController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,9 +19,32 @@ import androidx.navigation.navArgument
 import com.applab.ideadrop.ui.theme.IdeaDropTheme
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_QUICK_RECORD = "quickRecord"
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleQuickRecord(intent)
+    }
+
+    /** Opened from "Record idea" (side key, lock screen, shortcut): start recording at once. */
+    private fun handleQuickRecord(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_QUICK_RECORD, false) != true) return
+        intent.removeExtra(EXTRA_QUICK_RECORD)
+        val hasMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (hasMic) {
+            RecordingController.start(this)
+        } else {
+            Toast.makeText(this, "Tap the mic once to allow recording. After that, Record idea starts instantly.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleQuickRecord(intent)
         setContent {
             IdeaDropTheme {
                 val nav = rememberNavController()

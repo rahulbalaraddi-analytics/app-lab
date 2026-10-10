@@ -4,18 +4,20 @@ Speak an idea anytime → it becomes text, saved with the date and time → expo
 
 **Offline and private:** speech-to-text runs on the phone. Nothing leaves the device unless you export it.
 
-## Features (v0.1)
+## Features (v0.2)
 
 | Feature | Status |
 |---|---|
 | One-tap voice recording (keeps going with the screen locked) | ✅ |
-| Offline speech-to-text (English) | ✅ |
+| Speech-to-text with the phone's built-in engine: English (India/US), Hindi, Kannada | ✅ |
+| "Record idea" shortcut: side key, lock screen, home screen | ✅ |
 | Notes with date, time, title, category, done/pending | ✅ |
 | Add more to a note by voice or typing | ✅ |
 | Play back original audio | ✅ |
 | Export `.md`: All or Pending only (share or save) | ✅ |
 | Audio cleanup after 30 days (always asks first) | ✅ |
-| Widget, lock-screen, Quick Settings, hands-free | Next (M2) |
+| Smart AI titles + categories (offline) | Next |
+| Widget, Quick Settings tile, car/bedtime auto-listen | M2 |
 | Offline AI grouping + checklist | M3 |
 | Google Drive backup | M4 |
 
@@ -33,11 +35,10 @@ See the full plan in [PRD.md](PRD.md).
 
 ## First run
 
-1. Tap **Download** on the "Offline speech-to-text" card (~40 MB, one time)
-2. Tap the **mic**, speak, tap **Stop & save**
+1. Tap the **mic**, allow microphone, speak, tap **Stop & save**
+2. For offline speech, install your language pack in the phone's voice-typing settings
+3. Optional: side key → Settings → Advanced features → Side button → Double press → Open app → **Record idea**
 
 ## Tech
 
-Kotlin · Jetpack Compose · Room · Vosk (offline speech) · Foreground service for recording
-
-Speech model: [Vosk](https://alphacephei.com/vosk/) small English model (Apache 2.0), downloaded in-app — not stored in this repo.
+Kotlin · Jetpack Compose · Room · Android SpeechRecognizer · Foreground service for recording

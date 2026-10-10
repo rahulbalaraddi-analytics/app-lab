@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -39,15 +40,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.applab.ideadrop.speech.ModelState
 
 private val RETENTION_OPTIONS = listOf(7, 15, 30, 60, 90, 0)
+private val LANGUAGES = listOf(
+    "en-IN" to "English (India)",
+    "en-US" to "English (US)",
+    "hi-IN" to "हिन्दी Hindi",
+    "kn-IN" to "ಕನ್ನಡ Kannada",
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(vm: MainViewModel, back: () -> Unit) {
     val s by vm.settings.collectAsStateWithLifecycle()
-    val modelState by vm.modelState.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<String?>(null) } // "start" | "end"
 
     Scaffold(
@@ -87,14 +92,54 @@ fun SettingsScreen(vm: MainViewModel, back: () -> Unit) {
             }
 
             HorizontalDivider()
-            Section("Offline speech model")
-            when (modelState) {
-                ModelState.Ready -> {
-                    Hint("English model installed (~40 MB). Works without internet.")
-                    OutlinedButton(onClick = { vm.removeModel() }) { Text("Remove model") }
+            Section("Speech")
+            Text("Language", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LANGUAGES.forEach { (code, label) ->
+                    FilterChip(
+                        selected = s.language == code,
+                        onClick = { vm.updateSettings { it.copy(language = code) } },
+                        label = { Text(label) },
+                    )
                 }
-                else -> ModelCard(modelState, onDownload = vm::downloadModel)
             }
+            Hint(
+                "Uses your phone's built-in speech engine. For offline use, install the language pack: " +
+                    "Settings → General management → Samsung keyboard / Google voice typing → Offline speech recognition."
+            )
+            var words by remember { mutableStateOf(s.myWords) }
+            OutlinedTextField(
+                value = words,
+                onValueChange = { words = it; vm.updateSettings { st -> st.copy(myWords = it) } },
+                label = { Text("My words") },
+                placeholder = { Text("Guidewire, PolicyCenter, Hebbal, Thanisandra") },
+                supportingText = { Text("Names and terms you say often, separated by commas. Helps the engine spell them right.") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Keep original audio", style = MaterialTheme.typography.bodyLarge)
+                    Hint(
+                        when (s.audioStreaming) {
+                            1 -> "Working on this phone ✓"
+                            0 -> "This phone's speech engine can't share the mic, so only text is saved. Tap Retry after a phone/app update."
+                            else -> "Will be checked on your first recording."
+                        }
+                    )
+                }
+                if (s.audioStreaming == 0) {
+                    TextButton(onClick = { vm.updateSettings { it.copy(audioStreaming = -1) } }) { Text("Retry") }
+                }
+            }
+
+            HorizontalDivider()
+            Section("Quick record (side key & lock screen)")
+            Hint(
+                "IdeaDrop adds a second app icon called \"Record idea\". Opening it starts recording straight away.\n\n" +
+                    "• Side key: Settings → Advanced features → Side button → Double press → Open app → Record idea\n" +
+                    "• Lock screen: Settings → Lock screen → Shortcuts → choose Record idea\n" +
+                    "• Home screen: long-press the IdeaDrop icon → drag \"Record idea\" out"
+            )
 
             HorizontalDivider()
             Section("Export")
@@ -110,7 +155,7 @@ fun SettingsScreen(vm: MainViewModel, back: () -> Unit) {
             }
 
             HorizontalDivider()
-            Hint("IdeaDrop 0.1 · Everything stays on your phone unless you export it.")
+            Hint("IdeaDrop 0.2 · Your notes stay on your phone unless you export them.")
             Spacer(Modifier.height(24.dp))
         }
     }

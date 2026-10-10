@@ -54,7 +54,7 @@ import com.applab.ideadrop.audio.RecordingController
 import com.applab.ideadrop.data.NoteWithRecordings
 import com.applab.ideadrop.export.ExportScope
 import com.applab.ideadrop.export.MarkdownExporter
-import com.applab.ideadrop.speech.ModelState
+import com.applab.ideadrop.speech.PhoneSpeech
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -67,7 +67,6 @@ private enum class Filter(val label: String) { ALL("All"), PENDING("Pending"), D
 fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> Unit) {
     val context = LocalContext.current
     val notes by vm.notes.collectAsStateWithLifecycle()
-    val modelState by vm.modelState.collectAsStateWithLifecycle()
     val recState by RecordingController.state.collectAsStateWithLifecycle()
     val cleanup by vm.cleanup.collectAsStateWithLifecycle()
     val record = rememberRecorder()
@@ -109,12 +108,23 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
             }
         },
         bottomBar = {
-            if (recState != RecState.Idle) RecordingPanel(recState, modelState == ModelState.Ready)
+            if (recState != RecState.Idle) RecordingPanel(recState)
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            ModelCard(modelState, onDownload = vm::downloadModel)
-
+            val engineAvailable = remember { PhoneSpeech.isAvailable(context) }
+            if (!engineAvailable) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        "No speech engine found on this phone. Install or enable \"Speech Recognition & " +
+                            "Synthesis from Google\" in the Play Store, then reopen IdeaDrop.",
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,7 +183,6 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
 @Composable
 private fun NoteCard(item: NoteWithRecordings, onClick: () -> Unit, onDoneChange: (Boolean) -> Unit) {
     val n = item.note
-    val pendingText = item.recordings.any { it.needsTranscription }
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -209,11 +218,7 @@ private fun NoteCard(item: NoteWithRecordings, onClick: () -> Unit, onDoneChange
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val preview = when {
-                    n.text.isNotBlank() -> n.text
-                    pendingText -> "Voice saved · text will appear after the speech model downloads"
-                    else -> "No text"
-                }
+                val preview = n.text.ifBlank { "No text captured" }
                 Text(
                     preview,
                     style = MaterialTheme.typography.bodyMedium,

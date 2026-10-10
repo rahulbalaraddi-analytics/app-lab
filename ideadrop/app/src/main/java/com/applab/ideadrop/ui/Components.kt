@@ -24,16 +24,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -57,7 +53,6 @@ import androidx.core.content.ContextCompat
 import com.applab.ideadrop.audio.RecState
 import com.applab.ideadrop.audio.RecordingController
 import com.applab.ideadrop.export.ExportScope
-import com.applab.ideadrop.speech.ModelState
 import com.applab.ideadrop.ui.theme.RecordRed
 import kotlinx.coroutines.delay
 
@@ -91,7 +86,7 @@ fun rememberRecorder(): (noteId: Long?) -> Unit {
 
 /** Bottom panel while recording: timer, live text, big Stop button. */
 @Composable
-fun RecordingPanel(state: RecState, modelReady: Boolean) {
+fun RecordingPanel(state: RecState) {
     val context = LocalContext.current
     Surface(
         tonalElevation = 6.dp,
@@ -128,11 +123,7 @@ fun RecordingPanel(state: RecState, modelReady: Boolean) {
                             .verticalScroll(rememberScrollState()),
                     ) {
                         Text(
-                            text = when {
-                                !modelReady -> "Recording audio. Text will appear once the speech model is downloaded."
-                                state.liveText.isBlank() -> "Listening… start speaking"
-                                else -> state.liveText
-                            },
+                            text = state.liveText.ifBlank { "Listening… start speaking" },
                             style = MaterialTheme.typography.bodyLarge,
                             color = if (state.liveText.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant
                             else MaterialTheme.colorScheme.onSurface,
@@ -155,46 +146,6 @@ fun RecordingPanel(state: RecState, modelReady: Boolean) {
                     Text("Saving your idea…")
                 }
                 RecState.Idle -> {}
-            }
-        }
-    }
-}
-
-/** One-time download card for the offline speech model. */
-@Composable
-fun ModelCard(state: ModelState, onDownload: () -> Unit) {
-    if (state == ModelState.Ready) return
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Offline speech-to-text", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            when (state) {
-                is ModelState.Downloading -> {
-                    Text("Downloading… ${(state.progress * 100).toInt()}%")
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
-                }
-                ModelState.Unpacking -> {
-                    Text("Setting up…")
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-                else -> {
-                    Text(
-                        if (state is ModelState.Failed) "Download failed: ${state.message}"
-                        else "One-time download (~40 MB). After this, voice turns into text with no internet.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = onDownload) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (state is ModelState.Failed) "Retry" else "Download")
-                    }
-                }
             }
         }
     }

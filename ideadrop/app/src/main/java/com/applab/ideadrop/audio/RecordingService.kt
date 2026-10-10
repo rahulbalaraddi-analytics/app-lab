@@ -14,26 +14,32 @@ import android.content.pm.ServiceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.applab.ideadrop.IdeaDropApp
 import com.applab.ideadrop.R
-import com.applab.ideadrop.speech.LiveTranscriber
-import com.applab.ideadrop.speech.SpeechModel
+import com.applab.ideadrop.speech.PhoneSpeech
 import com.applab.ideadrop.ui.MainActivity
 import java.io.File
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface RecState {
     data object Idle : RecState
@@ -105,7 +111,7 @@ class RecordingService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_mic)
             .setContentTitle("IdeaDrop is listening")
-            .setContentText("Speak your idea. Tap Stop to save.")
+            .setContentText("Speak your idea. Tap Stop & save when done.")
             .setContentIntent(open)
             .addAction(0, "Stop & save", stop)
             .setOngoing(true)
@@ -126,55 +132,85 @@ class RecordingService : Service() {
 
         val startedAt = System.currentTimeMillis()
         RecordingController.set(RecState.Recording(startedAt, "", noteId))
-
-        val dir = File(filesDir, "audio").apply { mkdirs() }
-        val file = File(dir, "idea_$startedAt.wav")
-        val minBuf = AudioRecord.getMinBufferSize(
-            SpeechModel.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
-        )
-        val recorder = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SpeechModel.SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            maxOf(minBuf, 8192) * 2,
-        )
-        val model = app.speechModel.load()
-        val transcriber = model?.let { LiveTranscriber(it) }
-        val writer = WavWriter(file, SpeechModel.SAMPLE_RATE)
-        var text = ""
-
-        try {
-            recorder.startRecording()
-            val buf = ByteArray(4096)
-            while (scope.isActive && !stopRequested) {
-                val n = recorder.read(buf, 0, buf.size)
-                if (n <= 0) continue
-                writer.write(buf, n)
-                if (transcriber != null) {
-                    text = transcriber.accept(buf, n)
-                    RecordingController.set(RecState.Recording(startedAt, text, noteId))
-                }
-                if (System.currentTimeMillis() - startedAt > MAX_DURATION_MS) break
+        val settings = app.settings.state.value
+        val speech = PhoneSpeech(this, settings.language, settings.myWordsList()) { live ->
+            if (RecordingController.state.value is RecState.Recording) {
+                RecordingController.set(RecState.Recording(startedAt, live, noteId))
             }
-        } finally {
-            runCatching { recorder.stop() }
-            recorder.release()
-            writer.close()
+        }
+        fun timeUp() = System.currentTimeMillis() - startedAt > MAX_DURATION_MS
+
+        var audioFile: File? = null
+        val tryKeepAudio = Build.VERSION.SDK_INT >= 33 && settings.audioStreaming != 0
+        val stream = if (tryKeepAudio) speech.startWithAudioSource() else null
+
+        if (stream != null) {
+            // Record audio ourselves (kept for playback) and stream it to the speech engine
+            val failed = AtomicBoolean(false)
+            speech.onAudioSourceFailed = { failed.set(true) }
+            val dir = File(filesDir, "audio").apply { mkdirs() }
+            val file = File(dir, "idea_$startedAt.wav")
+            val pcm = Channel<ByteArray>(256, BufferOverflow.DROP_OLDEST)
+            val pipeWriter = scope.launch {
+                try { for (chunk in pcm) stream.write(chunk) } catch (_: IOException) {
+                } finally { runCatching { stream.close() } }
+            }
+            val minBuf = AudioRecord.getMinBufferSize(
+                PhoneSpeech.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+            )
+            val recorder = AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                PhoneSpeech.SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                maxOf(minBuf, 8192) * 2,
+            )
+            val writer = WavWriter(file, PhoneSpeech.SAMPLE_RATE)
+            try {
+                recorder.startRecording()
+                val buf = ByteArray(3200) // 100 ms
+                while (scope.isActive && !stopRequested && !failed.get() && !timeUp()) {
+                    val n = recorder.read(buf, 0, buf.size)
+                    if (n <= 0) continue
+                    writer.write(buf, n)
+                    pcm.trySend(buf.copyOf(n))
+                }
+            } finally {
+                runCatching { recorder.stop() }
+                recorder.release()
+                writer.close()
+                pcm.close()
+            }
+            if (failed.get()) {
+                // This phone's engine doesn't accept streamed audio: text-only from now on
+                app.settings.update { it.copy(audioStreaming = 0) }
+                file.delete()
+                speech.startWithMic()
+                while (scope.isActive && !stopRequested && !timeUp()) delay(100)
+            } else {
+                audioFile = file
+                // Let the last audio reach the engine (never block forever if it stalls)
+                withTimeoutOrNull(1_500) { pipeWriter.join() }
+            }
+        } else {
+            // Text only: the engine listens to the microphone directly
+            speech.startWithMic()
+            while (scope.isActive && !stopRequested && !timeUp()) delay(100)
         }
 
         RecordingController.set(RecState.Saving)
-        text = transcriber?.finish() ?: ""
-        transcriber?.close()
+        val text = speech.finish()
+        if (audioFile != null && speech.gotText && settings.audioStreaming != 1) {
+            app.settings.update { it.copy(audioStreaming = 1) }
+        }
         val durationMs = System.currentTimeMillis() - startedAt
-        val needsTranscription = transcriber == null
 
         if (durationMs < MIN_DURATION_MS && text.isBlank()) {
-            file.delete() // accidental tap
+            audioFile?.delete() // accidental tap
         } else if (noteId != null) {
-            app.repository.appendRecording(noteId, text, file, durationMs, needsTranscription)
+            app.repository.appendRecording(noteId, text, audioFile, durationMs)
         } else {
-            app.repository.createFromRecording(text, file, durationMs, needsTranscription)
+            app.repository.createFromRecording(text, audioFile, durationMs)
         }
         finish()
     }

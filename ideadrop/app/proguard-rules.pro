@@ -1,2 +1,1 @@
--keep class com.sun.jna.** { *; }
--keep class org.vosk.** { *; }
+# Keep rules (none needed yet)

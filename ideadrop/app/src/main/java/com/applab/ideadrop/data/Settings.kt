@@ -15,7 +15,15 @@ data class AppSettings(
     val bedtimeEndMin: Int = 1 * 60,
     /** Put a short instruction for Claude at the top of exports. */
     val exportIncludePrompt: Boolean = true,
-)
+    /** Speech language, e.g. en-IN, en-US, hi-IN, kn-IN. */
+    val language: String = "en-IN",
+    /** Comma-separated names/terms the speech engine should expect. */
+    val myWords: String = "",
+    /** Can this phone's engine take streamed audio (keeps recordings)? -1 unknown, 0 no, 1 yes. */
+    val audioStreaming: Int = -1,
+) {
+    fun myWordsList(): List<String> = myWords.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+}
 
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -28,6 +36,9 @@ class SettingsStore(context: Context) {
         bedtimeStartMin = prefs.getInt("bedtimeStartMin", 22 * 60),
         bedtimeEndMin = prefs.getInt("bedtimeEndMin", 60),
         exportIncludePrompt = prefs.getBoolean("exportIncludePrompt", true),
+        language = prefs.getString("language", "en-IN") ?: "en-IN",
+        myWords = prefs.getString("myWords", "") ?: "",
+        audioStreaming = prefs.getInt("audioStreaming", -1),
     )
 
     fun update(transform: (AppSettings) -> AppSettings) {
@@ -38,6 +49,9 @@ class SettingsStore(context: Context) {
             .putInt("bedtimeStartMin", s.bedtimeStartMin)
             .putInt("bedtimeEndMin", s.bedtimeEndMin)
             .putBoolean("exportIncludePrompt", s.exportIncludePrompt)
+            .putString("language", s.language)
+            .putString("myWords", s.myWords)
+            .putInt("audioStreaming", s.audioStreaming)
             .apply()
         _state.value = s
     }

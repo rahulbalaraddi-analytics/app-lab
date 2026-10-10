@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">IdeaDrop</string>
+    <string name="record_idea">Record idea</string>
 </resources>

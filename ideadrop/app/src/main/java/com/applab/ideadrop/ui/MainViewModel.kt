@@ -39,21 +39,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val categories: StateFlow<List<String>> =
         repo.categories.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settings: StateFlow<AppSettings> = app.settings.state
-    val modelState = app.speechModel.state
     val player = AudioPlayer()
 
     private val _cleanup = MutableStateFlow<CleanupPrompt?>(null)
     val cleanup: StateFlow<CleanupPrompt?> = _cleanup.asStateFlow()
 
     init {
-        app.transcribePending()
         checkCleanup()
     }
 
     fun note(id: Long): Flow<NoteWithRecordings?> = repo.note(id)
-
-    fun downloadModel() = app.downloadModel()
-    fun removeModel() = viewModelScope.launch { app.speechModel.remove() }
 
     fun save(note: Note) = viewModelScope.launch { repo.save(note) }
     fun setDone(note: Note, done: Boolean) = viewModelScope.launch { repo.setDone(note, done) }

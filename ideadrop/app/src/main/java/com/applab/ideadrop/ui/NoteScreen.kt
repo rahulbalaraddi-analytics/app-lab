@@ -53,7 +53,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.applab.ideadrop.audio.RecState
 import com.applab.ideadrop.audio.RecordingController
 import com.applab.ideadrop.data.Recording
-import com.applab.ideadrop.speech.ModelState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,7 +63,6 @@ fun NoteScreen(vm: MainViewModel, noteId: Long, back: () -> Unit) {
     val data by remember(noteId) { vm.note(noteId) }.collectAsState(initial = null)
     val categories by vm.categories.collectAsStateWithLifecycle()
     val recState by RecordingController.state.collectAsStateWithLifecycle()
-    val modelState by vm.modelState.collectAsStateWithLifecycle()
     val playing by vm.player.playingPath.collectAsStateWithLifecycle()
     val record = rememberRecorder()
 
@@ -109,7 +107,7 @@ fun NoteScreen(vm: MainViewModel, noteId: Long, back: () -> Unit) {
         },
         bottomBar = {
             if (recState != RecState.Idle) {
-                RecordingPanel(recState, modelState == ModelState.Ready)
+                RecordingPanel(recState)
             } else if (note != null) {
                 FilledTonalButton(
                     onClick = { saveIfDirty(); record(note.id) },
@@ -205,11 +203,7 @@ private fun ClipRow(rec: Recording, isPlaying: Boolean, onToggle: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                when {
-                    rec.filePath == null -> "Audio deleted · text kept"
-                    rec.needsTranscription -> "Waiting for speech model to create text"
-                    else -> "Audio saved"
-                },
+                if (rec.filePath == null) "No audio · text kept" else "Audio saved",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

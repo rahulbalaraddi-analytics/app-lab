@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 0.2 |
-| **Status** | M1 in build |
+| **Version** | 0.3 |
+| **Status** | v0.2 app built; AI titles next |
 | **Platform** | Android (Kotlin + Jetpack Compose) |
 | **Last updated** | 2026-10-10 |
 
@@ -45,9 +45,9 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 |---|---|---|
 | Record button in app | P0 | One tap start/stop |
 | Home-screen widget | P0 | One tap to record |
-| Lock-screen shortcut | P0 | Via lock-screen app shortcut |
+| Lock-screen shortcut | P0 | "Record idea" app entry, usable as a lock-screen shortcut ✅ v0.2 |
 | Quick Settings tile | P0 | Pull-down panel button |
-| Side-key double-press | P0 | Samsung setting → opens IdeaDrop in record mode (no code) |
+| Side-key double-press | P0 | Samsung setting → Open app → **Record idea** → starts recording ✅ v0.2 |
 | "Hey Google, open IdeaDrop" | P0 | Deep link auto-starts recording |
 | Smart auto-listen windows | P0 | Only when connected to car Bluetooth, or bedtime window (default **10 PM – 1 AM**, changeable); manual on/off toggle |
 | Auto-stop on silence | P0 | Saves automatically — driving mode needs zero touch |
@@ -59,11 +59,12 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 
 | Feature | Priority | Notes |
 |---|---|---|
-| Offline on-device speech-to-text (English) | P0 | M1: Vosk small English model (~40 MB, one-time download). Upgrade to Whisper for accuracy in P1 |
-| Keep original audio | P0 | Playback per note |
+| Speech-to-text | P0 | **Phone's built-in engine** (Google/Samsung), English (India) default; offline with the phone's language pack. Vosk dropped after test (~48% accuracy) |
+| Keep original audio | P0 | Streamed to the engine on Android 13+ so audio is kept; text-only fallback if the phone's engine doesn't support it |
 | Audio cleanup after N days | P0 | Default **30 days**, changeable (7/15/30/60/90/Never). **Always asks before deleting**; text is kept |
 | Free cloud transcription when online | P2 | Only if a free, keyless option exists |
-| Kannada, Hindi, Hinglish | Future | |
+| Kannada, Hindi | P0 | Language choice in Settings (needs phone language pack). Hinglish: Future |
+| "My words" list | P0 | Names/terms hinted to the engine (Android 13+) |
 
 ### 5.3 Notes
 
@@ -79,7 +80,8 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 
 | Feature | Priority | Notes |
 |---|---|---|
-| Offline LLM groups notes into categories | P1 | Small Gemma-class model (~1B), optional download |
+| Smart title (clean, readable) | P0 | v0.2: rule-based (drops "I want to…" etc.). Next: on-device AI |
+| Offline LLM groups notes into categories | P1 | Small model (~0.5–1B), optional download |
 | LLM builds a quick checklist per category | P1 | Short, actionable items |
 | Edit categories by voice or text ("my categories are…") | P1 | |
 | Done / pending tracking per note | P0 | Per checklist item in P1 |
@@ -117,7 +119,7 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Language / UI | Kotlin, Jetpack Compose, Material 3 |
 | Storage | Room (SQLite) + app files for audio |
 | Background | Foreground service for recording; WorkManager for jobs |
-| Speech-to-text | Vosk (M1, offline) → whisper.cpp (P1) |
+| Speech-to-text | Android SpeechRecognizer (phone's engine), Whisper as backup option |
 | On-device LLM | MediaPipe LLM Inference + small Gemma model |
 | Widget | Jetpack Glance |
 | Drive sync | Google Drive REST API (user's own account) |
@@ -147,3 +149,4 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | 2026-10-10 | 0.1 | First draft from requirements discussion |
 | 2026-10-10 | 0.1.1 | Sync test: confirmed Claude → GitHub push works |
 | 2026-10-10 | 0.2 | Audio cleanup (30 days, ask first), bedtime 10 PM–1 AM, Vosk for M1 speech, M1 scope expanded |
+| 2026-10-10 | 0.3 | Accuracy test: Vosk ~48% vs phone engine. Switched to phone's built-in engine (en-IN, Hindi, Kannada), My words, Record idea shortcut (side key / lock screen), better auto titles |

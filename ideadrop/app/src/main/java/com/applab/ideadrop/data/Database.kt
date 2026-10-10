@@ -47,7 +47,7 @@ data class Recording(
     val filePath: String?,
     val durationMs: Long,
     val transcript: String,
-    /** True when it was recorded before the speech model was ready. */
+    /** Legacy (v0.1 engine). Always false now. */
     val needsTranscription: Boolean = false,
     val createdAt: Long,
 )
@@ -90,9 +90,6 @@ interface NoteDao {
 
     @Query("SELECT * FROM recordings WHERE filePath IS NOT NULL AND createdAt < :before")
     suspend fun recordingsWithAudioBefore(before: Long): List<Recording>
-
-    @Query("SELECT * FROM recordings WHERE needsTranscription = 1 AND filePath IS NOT NULL")
-    suspend fun recordingsNeedingTranscription(): List<Recording>
 }
 
 @Database(entities = [Note::class, Recording::class], version = 1, exportSchema = false)
