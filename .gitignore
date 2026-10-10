@@ -1,0 +1,37 @@
+# --- Secrets: never commit ---
+*.jks
+*.keystore
+keystore.properties
+local.properties
+google-services.json
+*.pem
+.env
+.env.*
+secrets.*
+
+# --- Android / Gradle build output ---
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+
+# --- Downloaded AI models (too large for git) ---
+*.bin
+*.task
+*.tflite
+*.gguf
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
