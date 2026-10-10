@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 0.1 (draft) |
-| **Status** | Planning → M1 build |
+| **Version** | 0.2 |
+| **Status** | M1 in build |
 | **Platform** | Android (Kotlin + Jetpack Compose) |
 | **Last updated** | 2026-10-10 |
 
@@ -49,7 +49,7 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Quick Settings tile | P0 | Pull-down panel button |
 | Side-key double-press | P0 | Samsung setting → opens IdeaDrop in record mode (no code) |
 | "Hey Google, open IdeaDrop" | P0 | Deep link auto-starts recording |
-| Smart auto-listen windows | P0 | Only when connected to car Bluetooth, or a set bedtime window; manual on/off toggle |
+| Smart auto-listen windows | P0 | Only when connected to car Bluetooth, or bedtime window (default **10 PM – 1 AM**, changeable); manual on/off toggle |
 | Auto-stop on silence | P0 | Saves automatically — driving mode needs zero touch |
 | Custom "Hey Idea" wake word | P1 | Offline open-source wake-word engine, toggle-only |
 | Volume long-press trigger | P1 | Personal build only (Accessibility API is a Play Store policy risk) |
@@ -59,9 +59,9 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 
 | Feature | Priority | Notes |
 |---|---|---|
-| Offline on-device speech-to-text (English) | P0 | Whisper-family model, runs on phone |
+| Offline on-device speech-to-text (English) | P0 | M1: Vosk small English model (~40 MB, one-time download). Upgrade to Whisper for accuracy in P1 |
 | Keep original audio | P0 | Playback per note |
-| Auto-delete audio after N days | P1 | User setting |
+| Audio cleanup after N days | P0 | Default **30 days**, changeable (7/15/30/60/90/Never). **Always asks before deleting**; text is kept |
 | Free cloud transcription when online | P2 | Only if a free, keyless option exists |
 | Kannada, Hindi, Hinglish | Future | |
 
@@ -82,7 +82,7 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Offline LLM groups notes into categories | P1 | Small Gemma-class model (~1B), optional download |
 | LLM builds a quick checklist per category | P1 | Short, actionable items |
 | Edit categories by voice or text ("my categories are…") | P1 | |
-| Done / pending tracking per item | P1 | |
+| Done / pending tracking per note | P0 | Per checklist item in P1 |
 | Detailed plan via external AI | P0 | Through export (5.5) |
 
 > **Why hybrid:** a ~1B on-device model groups ideas and drafts short checklists well, but detailed planning is better done by a large model after export.
@@ -117,7 +117,7 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Language / UI | Kotlin, Jetpack Compose, Material 3 |
 | Storage | Room (SQLite) + app files for audio |
 | Background | Foreground service for recording; WorkManager for jobs |
-| Speech-to-text | whisper.cpp (Android, offline) |
+| Speech-to-text | Vosk (M1, offline) → whisper.cpp (P1) |
 | On-device LLM | MediaPipe LLM Inference + small Gemma model |
 | Widget | Jetpack Glance |
 | Drive sync | Google Drive REST API (user's own account) |
@@ -126,18 +126,18 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 
 | # | Milestone | Scope | Tag |
 |---|---|---|---|
-| **M1** | Core capture | Record → offline transcribe → timestamped notes list → edit → export `.md` | `ideadrop-v0.1` |
+| **M1** | Core capture | Record (keeps going on lock screen) → offline transcribe → timestamped notes → edit, category, done/pending, add by voice → export `.md` (All / Pending) → audio cleanup prompt | `ideadrop-v0.1` |
 | **M2** | Hands-free | Widget, Quick Settings tile, lock-screen shortcut, deep link, auto-stop on silence, car/bedtime windows | `ideadrop-v0.2` |
 | **M3** | AI grouping | On-device LLM categories + quick checklist + done/pending | `ideadrop-v0.3` |
-| **M4** | Sync | Google Drive folder backup, pending-only export, audio auto-cleanup | `ideadrop-v0.4` |
+| **M4** | Sync | Google Drive folder backup | `ideadrop-v0.4` |
 | **M5** | Polish | Icons, theming, onboarding, Play Store readiness | `ideadrop-v1.0` |
 
 ## 9. Open Questions
 
 | # | Question | Status |
 |---|---|---|
-| 1 | Default audio retention period (7 / 30 days?) | Open |
-| 2 | Bedtime window default hours | Open |
+| 1 | Default audio retention period | ✅ 30 days, ask before delete, changeable |
+| 2 | Bedtime window default hours | ✅ 10 PM – 1 AM, changeable |
 | 3 | Free keyless cloud STT option exists? | Research in P2 |
 
 ## 10. Changelog
@@ -146,3 +146,4 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 |---|---|---|
 | 2026-10-10 | 0.1 | First draft from requirements discussion |
 | 2026-10-10 | 0.1.1 | Sync test: confirmed Claude → GitHub push works |
+| 2026-10-10 | 0.2 | Audio cleanup (30 days, ask first), bedtime 10 PM–1 AM, Vosk for M1 speech, M1 scope expanded |
