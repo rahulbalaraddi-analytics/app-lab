@@ -145,3 +145,4 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Date | Version | Change |
 |---|---|---|
 | 2026-10-10 | 0.1 | First draft from requirements discussion |
+| 2026-10-10 | 0.1.1 | Sync test: confirmed Claude → GitHub push works |
