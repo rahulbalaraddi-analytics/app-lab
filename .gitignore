@@ -1,6 +1,8 @@
 # --- Secrets: never commit ---
 *.jks
 *.keystore
+# Exception: shared debug key for test builds (not a secret)
+!ideadrop/app/debug.keystore
 keystore.properties
 local.properties
 google-services.json

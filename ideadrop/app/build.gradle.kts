@@ -17,6 +17,18 @@ android {
         versionName = "0.2.0"
     }
 
+    signingConfigs {
+        // Shared, non-secret debug key (public "android" password) so every
+        // build can be installed over the previous one without losing notes.
+        // A private release key will be used for the Play Store, never committed.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
