@@ -25,6 +25,10 @@ app-lab/
 
 Open the app's folder (not the repo root) in Android Studio.
 
+## Docs for every app
+
+Each app folder has a `docs/` with the same 6 files: **PRD · TRD · Design · Flowcharts · Database · Test plan**.
+
 ## Principles
 
 - **Offline-first** — core features work without internet

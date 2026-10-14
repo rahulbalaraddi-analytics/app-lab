@@ -44,7 +44,7 @@ It starts with sensible defaults and gets sharper after a day or two of readings
 
 ## Setup (in the app: ⚙)
 
-1. **Usage access**: screen time + apps
+1. **Usage access**: screen time + apps. If it says *“App was denied access”*: Settings → Apps → BatteryPilot → ⋮ → **Allow restricted settings**, then try again
 2. **Modify system settings**: Auto fixes
 3. **Notifications**: the 11 PM heads-up
 4. **Battery optimisation off** + Samsung **Never sleeping apps**: readings keep coming
@@ -58,6 +58,17 @@ adb shell appops set com.applab.batterypilot GET_USAGE_STATS allow
 ```
 
 This unlocks exact per-app battery, one-tap Power saving / 60 Hz / scanning, and Smart saver. It stays granted through updates.
+
+## Docs
+
+| # | Doc |
+|---|---|
+| 1 | [PRD](docs/01-PRD.md) |
+| 2 | [TRD](docs/02-TRD.md) |
+| 3 | [Design](docs/03-Design.md) |
+| 4 | [Flowcharts](docs/04-Flowcharts.md) |
+| 5 | [Database](docs/05-Database.md) |
+| 6 | [Test plan](docs/06-Test-Plan.md) |
 
 ## Tech
 

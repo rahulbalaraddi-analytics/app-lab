@@ -102,6 +102,16 @@ fun SetupScreen(snap: Snapshot, vm: MainViewModel, padding: PaddingValues) {
                 Step("1. Usage access", "Screen-on time and which apps you use", a.usage) {
                     open(context, Access.usageAccessIntent(context), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                 }
+                if (!a.usage) {
+                    Text(
+                        "Blocked with “App was denied access”? Android blocks this for apps installed from an APK. " +
+                            "Fix: App info → ⋮ (top-right) → Allow restricted settings → then tap Allow above again.",
+                        style = MaterialTheme.typography.labelSmall, color = Status.Warn,
+                    )
+                    TextButton(onClick = {
+                        open(context, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+                    }) { Text("Open App info") }
+                }
                 Step("2. Modify system settings", "Lets ‘Auto’ fixes change brightness and timeout", a.writeSettings) {
                     open(context, Access.writeSettingsIntent(context))
                 }
