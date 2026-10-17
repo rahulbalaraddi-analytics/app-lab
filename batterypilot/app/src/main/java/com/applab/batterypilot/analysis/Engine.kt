@@ -3,6 +3,7 @@ package com.applab.batterypilot.analysis
 import android.content.Context
 import com.applab.batterypilot.collect.Access
 import com.applab.batterypilot.collect.AccessState
+import com.applab.batterypilot.collect.AppActivity
 import com.applab.batterypilot.collect.BatteryReader
 import com.applab.batterypilot.collect.BatteryStatsReader
 import com.applab.batterypilot.collect.DrainReport
@@ -33,7 +34,16 @@ data class AppRow(
     val backgroundHeavy: Boolean,
     /** "exact" from Android's battery stats, "estimate" from screen time. */
     val source: String,
-)
+    /** Foreground/background activity since the last full charge (USB setup only). */
+    val activity: AppActivity? = null,
+    /** mAh while on screen / in the background (exact, Android 13+ only). */
+    val fgMah: Double? = null,
+    val bgMah: Double? = null,
+    /** Plain-language reasons it drains in the background. */
+    val reasons: List<String> = emptyList(),
+) {
+    val bgShare: Double? get() = if (fgMah != null && bgMah != null && fgMah + bgMah > 0) bgMah / (fgMah + bgMah) else null
+}
 
 /** A part of the phone (screen, mobile network...) and its share. */
 data class PartRow(val label: String, val pct: Double)
@@ -140,9 +150,21 @@ object Engine {
                 // How much of the drop its on-screen time explains.
                 val dropSinceUnplug = unplug?.let { (it.level - (samples.lastOrNull()?.level ?: it.level)).coerceAtLeast(1) } ?: 50
                 val fgExplains = fgMs.toDouble() / HOUR * model.screenOnRate / dropSinceUnplug * 100 * 0.6
-                AppRow(pkg, item.label, pct, item.mah, (fgMs / 60_000).toInt(),
-                    backgroundHeavy = pct >= 3.0 && pct > fgExplains * 1.5 + 2.0,
-                    source = "exact")
+                val act = item.uid?.let { report.activity[it] }
+                val sp = item.uid?.let { report.split[it] }
+                val fgMah = sp?.fg
+                val bgMah = sp?.background
+                val bgShare = if (sp != null && sp.fg + sp.background > 0) sp.background / (sp.fg + sp.background) else null
+                val onScreenMin = maxOf(fgMs, act?.topMs ?: 0L) / 60_000
+                val heavy = when {
+                    bgShare != null -> pct >= 2.0 && bgShare >= 0.4
+                    else -> pct >= 3.0 && (pct > fgExplains * 1.5 + 2.0 ||
+                        (act?.wakelockMs ?: 0) >= 30 * 60_000L ||
+                        (act?.hiddenMs ?: 0) >= 3 * HOUR)
+                }
+                AppRow(pkg, item.label, pct, item.mah, onScreenMin.toInt(),
+                    backgroundHeavy = heavy, source = "exact",
+                    activity = act, fgMah = fgMah, bgMah = bgMah, reasons = reasons(act, bgShare))
             }.filter { it.pctOfUsed!! >= 0.5 }
         } else {
             val totalFg = fgByPkg.values.sum().coerceAtLeast(1L)
@@ -180,6 +202,23 @@ object Engine {
             fixLog = log,
             prefs = PrefsView(prefs.targetHour, prefs.bufferPct, prefs.alertsOn, prefs.smartSaver, prefs.saverBelowPct),
         )
+    }
+
+    private fun reasons(a: AppActivity?, bgShare: Double?): List<String> {
+        val out = ArrayList<String>()
+        if (bgShare != null && bgShare >= 0.2) out += "${(bgShare * 100).toInt()}% of its battery used in the background"
+        a ?: return out
+        if (a.wakelockMs >= 5 * 60_000) out += "Kept the phone awake ${fmt(a.wakelockMs)} with the screen off"
+        if (a.backgroundMs >= 15 * 60_000) out += "Ran in the background ${fmt(a.backgroundMs)}"
+        if (a.fgServiceMs >= 15 * 60_000) out += "Foreground service ${fmt(a.fgServiceMs)} (music, navigation, uploads, calls)"
+        if (a.jobCount >= 20) out += "${a.jobCount} background jobs (sync, refresh)"
+        if (a.mobileBytes >= 50L * 1024 * 1024) out += "${a.mobileBytes / (1024 * 1024)} MB mobile data"
+        return out
+    }
+
+    private fun fmt(ms: Long): String {
+        val m = ms / 60_000
+        return if (m >= 60) "${m / 60}h ${m % 60}m" else "${m}m"
     }
 
     /** Typical screen-on hours per day, over the days we have readings for. */

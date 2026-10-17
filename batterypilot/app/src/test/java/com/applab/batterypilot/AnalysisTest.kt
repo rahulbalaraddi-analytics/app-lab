@@ -115,4 +115,37 @@ class AnalysisTest {
         val imp = ba.improvementPct!!
         assertTrue("improvement was $imp", imp in 20.0..45.0)
     }
+
+    @Test
+    fun activityParserSplitsForegroundAndBackground() {
+        val lines = listOf(
+            "9,10234,l,st,3600000,1800000,0,7200000,0,0,500000",
+            "9,10234,l,wl,*job*/sync,0,f,0,900000,p,12,0,bp,0,0",
+            "9,10234,l,wl,location,0,f,0,300000,p,3,0,bp,0,0",
+            "9,10234,l,jb,sync_job,60000,25",
+            "9,10234,l,nt,104857600,10485760,0,0,0,0",
+            "9,10234,l,cpu,120000,30000,0",
+            "9,1000,l,st,1,2,3,4,5,6,7", // system uid → ignored
+        )
+        val a = BatteryStatsReader.parseActivity(lines)[10234]!!
+        assertEquals(3_600_000L, a.topMs)
+        assertEquals(1_800_000L, a.fgServiceMs)
+        assertEquals(7_200_000L, a.backgroundMs)
+        assertEquals(1_200_000L, a.wakelockMs)
+        assertEquals(15, a.wakelockCount)
+        assertEquals(25, a.jobCount)
+        assertEquals(115_343_360L, a.mobileBytes)
+        assertEquals(150_000L, a.cpuMs)
+        assertNull(BatteryStatsReader.parseActivity(lines)[1000])
+    }
+
+    @Test
+    fun humanParserReadsForegroundBackgroundSplit() {
+        val lines = listOf(
+            "    UID u0a234: 210.5 fg: 60.0 bg: 120.5 fgs: 30.0 cached: 0 ( cpu=50.1 fg=1.0 )",
+        )
+        val r = BatteryStatsReader.parseHuman(lines).single()
+        assertEquals(60.0, r.split!!.fg, 0.01)
+        assertEquals(150.5, r.split!!.background, 0.01)
+    }
 }

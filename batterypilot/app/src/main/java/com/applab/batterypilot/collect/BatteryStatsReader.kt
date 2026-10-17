@@ -18,35 +18,84 @@ data class DrainItem(
     val uid: Int?,
 )
 
+/** What an app did since the last full charge, split by foreground / background. */
+data class AppActivity(
+    /** On screen, in front of you (Android "top" state), ms. */
+    val topMs: Long = 0,
+    /** Foreground service: music, navigation, calls, uploads — visible notification, ms. */
+    val fgServiceMs: Long = 0,
+    /** Other foreground state (e.g. bound to a visible app), ms. */
+    val foregroundMs: Long = 0,
+    /** Running in the background, ms. */
+    val backgroundMs: Long = 0,
+    /** Kept the phone awake with the screen off (partial wakelocks), ms. */
+    val wakelockMs: Long = 0,
+    val wakelockCount: Int = 0,
+    /** Background jobs run by the system for this app. */
+    val jobCount: Int = 0,
+    val jobMs: Long = 0,
+    val mobileBytes: Long = 0,
+    val wifiBytes: Long = 0,
+    val cpuMs: Long = 0,
+) {
+    val hiddenMs get() = backgroundMs + fgServiceMs
+}
+
+/** Battery split by process state, mAh (Android 13+; null if the phone doesn't report it). */
+data class PowerSplit(val fg: Double, val bg: Double, val fgs: Double, val cached: Double) {
+    val background get() = bg + fgs + cached
+}
+
 data class DrainReport(
     /** Sum of all items, mAh, since the last full charge. */
     val totalMah: Double,
     val items: List<DrainItem>,
+    val activity: Map<Int, AppActivity> = emptyMap(),
+    val split: Map<Int, PowerSplit> = emptyMap(),
 ) {
     val apps get() = items.filter { it.packageName != null }
     val parts get() = items.filter { it.packageName == null }
 }
 
 /** Raw line from Android's battery stats: (uid or null, label, mAh). */
-data class RawPower(val uid: Int?, val label: String, val mah: Double)
+data class RawPower(val uid: Int?, val label: String, val mah: Double, val split: PowerSplit? = null)
 
 /**
- * Exact per-app battery use, the same numbers as the phone's own Battery screen.
+ * Exact per-app battery use, the same numbers as the phone's own Battery screen,
+ * plus foreground/background activity per app.
  * Needs the DUMP permission from the one-time USB setup; returns null without it.
  */
 object BatteryStatsReader {
 
-    suspend fun read(context: Context): DrainReport? = withContext(Dispatchers.IO) {
+    @Volatile private var cache: Pair<Long, DrainReport>? = null
+
+    suspend fun read(context: Context, maxAgeMs: Long = 120_000): DrainReport? = withContext(Dispatchers.IO) {
         if (!Access.canDump(context)) return@withContext null
-        val raw = run(listOf("dumpsys", "batterystats", "--charged", "--checkin"))
-            ?.let { parseCheckin(it) }?.takeIf { it.isNotEmpty() }
+        cache?.let { (t, r) -> if (System.currentTimeMillis() - t < maxAgeMs) return@withContext r }
+
+        val checkin = run(listOf("dumpsys", "batterystats", "--charged", "--checkin"))
+            ?.takeIf { lines -> parseCheckin(lines).isNotEmpty() }
             ?: run(listOf("dumpsys", "batterystats", "--checkin"))
-                ?.let { parseCheckin(it) }?.takeIf { it.isNotEmpty() }
-            ?: run(listOf("dumpsys", "batterystats", "--charged"))
-                ?.let { parseHuman(it) }?.takeIf { it.isNotEmpty() }
-            ?: return@withContext null
-        buildReport(context, raw)
+        // Human-readable dump: fallback for totals, and the only place with fg/bg mAh split.
+        val human = run(listOf("dumpsys", "batterystats", "--charged"))
+
+        val rawCheckin = checkin?.let { parseCheckin(it) }.orEmpty()
+        val rawHuman = human?.let { parseHuman(it) }.orEmpty()
+        val raw = rawCheckin.ifEmpty { rawHuman }
+        if (raw.isEmpty()) return@withContext null
+
+        val activity = checkin?.let { parseActivity(it) }.orEmpty()
+        val split = rawHuman.filter { it.uid != null && it.split != null }
+            .groupBy { it.uid!! }
+            .mapValues { (_, l) ->
+                PowerSplit(l.sumOf { it.split!!.fg }, l.sumOf { it.split!!.bg }, l.sumOf { it.split!!.fgs }, l.sumOf { it.split!!.cached })
+            }
+        val report = buildReport(context, raw).copy(activity = activity, split = split)
+        cache = System.currentTimeMillis() to report
+        report
     }
+
+    private val keepTypes = setOf("pwi", "pws", "st", "wl", "jb", "nt", "cpu")
 
     private suspend fun run(cmd: List<String>): List<String>? = withTimeoutOrNull(25_000) {
         runCatching {
@@ -57,8 +106,9 @@ object BatteryStatsReader {
                 while (true) {
                     val line = r.readLine() ?: break
                     // Keep only what we parse: the output can be several MB of history.
-                    if (line.contains(",pwi,") || line.contains(",pws,")) {
-                        keep += line
+                    if (line.length > 6 && line[0].isDigit() && line.contains(",l,")) {
+                        val f = line.split(',', limit = 5)
+                        if (f.size >= 4 && f[2] == "l" && f[3] in keepTypes) keep += line
                     } else if (line.contains("Estimated power use")) {
                         inPowerSection = true
                         keep += line
@@ -94,17 +144,63 @@ object BatteryStatsReader {
         return out
     }
 
+    /**
+     * Per-app activity rows (checkin, "since charged"):
+     *   st  : top, fgService, foreground, background, topSleeping, heavy, cached (ms)
+     *   wl  : name, fullMs, f, count, partialMs, p, count, ...
+     *   jb  : name, totalMs, count
+     *   nt  : mobileRx, mobileTx, wifiRx, wifiTx, ... (bytes)
+     *   cpu : userMs, systemMs, ...
+     */
+    fun parseActivity(lines: List<String>): Map<Int, AppActivity> {
+        val m = HashMap<Int, AppActivity>()
+        for (line in lines) {
+            val f = line.split(',')
+            if (f.size < 5 || f[2] != "l") continue
+            val uid = f[1].toIntOrNull() ?: continue
+            if (uid % 100_000 < 10_000) continue
+            val d = f.subList(4, f.size)
+            fun L(i: Int) = d.getOrNull(i)?.toLongOrNull() ?: 0L
+            val a = m[uid] ?: AppActivity()
+            m[uid] = when (f[3]) {
+                "st" -> a.copy(topMs = a.topMs + L(0), fgServiceMs = a.fgServiceMs + L(1),
+                    foregroundMs = a.foregroundMs + L(2), backgroundMs = a.backgroundMs + L(3))
+                "wl" -> {
+                    val pi = d.indexOf("p")
+                    if (pi >= 1) a.copy(
+                        wakelockMs = a.wakelockMs + (d[pi - 1].toLongOrNull() ?: 0L),
+                        wakelockCount = a.wakelockCount + (d.getOrNull(pi + 1)?.toIntOrNull() ?: 0),
+                    ) else a
+                }
+                "jb" -> a.copy(jobMs = a.jobMs + L(1), jobCount = a.jobCount + L(2).toInt())
+                "nt" -> a.copy(mobileBytes = a.mobileBytes + L(0) + L(1), wifiBytes = a.wifiBytes + L(2) + L(3))
+                "cpu" -> a.copy(cpuMs = a.cpuMs + L(0) + L(1))
+                else -> a
+            }
+        }
+        return m
+    }
+
     private val uidLine = Regex("""^\s+(?:UID|Uid)\s+(\S+):\s+([\d.]+)""")
     private val partLine = Regex("""^\s+([A-Za-z][A-Za-z /]+?):\s+([\d.]+)""")
+    private fun splitValue(line: String, key: String): Double? =
+        Regex("""\b$key:\s*([\d.]+)""").find(line)?.groupValues?.get(1)?.toDoubleOrNull()
 
-    /** Human-readable "Estimated power use (mAh):" section (fallback). */
+    /** Human-readable "Estimated power use (mAh):" section (fallback + fg/bg split). */
     fun parseHuman(lines: List<String>): List<RawPower> {
         val out = ArrayList<RawPower>()
         for (line in lines) {
             uidLine.find(line)?.let { m ->
                 val uid = parseUid(m.groupValues[1])
                 val mah = m.groupValues[2].toDoubleOrNull()
-                if (uid != null && mah != null && mah > 0) out += RawPower(uid, "uid", mah)
+                // Only look for fg/bg before the "( cpu=... )" details.
+                val head = line.substringBefore("(")
+                val fg = splitValue(head, "fg")
+                val bg = splitValue(head, "bg")
+                val split = if (fg != null || bg != null) PowerSplit(
+                    fg ?: 0.0, bg ?: 0.0, splitValue(head, "fgs") ?: 0.0, splitValue(head, "cached") ?: 0.0,
+                ) else null
+                if (uid != null && mah != null && mah > 0) out += RawPower(uid, "uid", mah, split)
                 return@let
             } ?: partLine.find(line)?.let { m ->
                 val name = m.groupValues[1].trim()

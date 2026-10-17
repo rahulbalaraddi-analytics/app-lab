@@ -4,13 +4,13 @@ Make the battery last till **11 PM**. The app watches how your phone drains, lea
 
 **Private:** no internet permission and no account. Everything is read and analysed on the phone.
 
-## What it does (v0.1)
+## What it does (v0.2)
 
 | Area | What you get |
 |---|---|
 | **Today** | Current %, forecast at 11 PM (or the time you'll hit 0%), drain now vs allowed %/hr, chart with forecast, screen-on time, temperature, battery health |
 | **Where it's going** | Screen / mobile network / Wi-Fi / apps / idle split (exact after USB setup) |
-| **Apps** | Battery per app since the last full charge, flags **background-heavy** apps |
+| **Apps** | Battery per app since the last full charge; **on screen vs background** split, kept-awake time, jobs, data per app; flags **background-heavy** apps |
 | **Fixes** | Tick boxes with estimated **+minutes/day** each. One **Apply** button: Auto fixes are changed for you (with Undo). Guided fixes open the exact settings screen, one after another |
 | **History** | Before/after table (avg, screen-on, screen-off %/hr), day-by-day table, change log, what the model learned |
 | **Automatic** | One heads-up a day if you won't make 11 PM. **Smart saver** turns on Power saving only when the forecast misses. Optional "Power saving below X%" |

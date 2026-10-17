@@ -10,6 +10,8 @@
 | U4 | `modelLearnsRateAndForecastMissesElevenPm` | Learns 8.3%/hr (±1); 0% between 6–9:30 PM | ✅ Pass |
 | U5 | `forecastMakesItOnALightDay` | 4%/hr day → makes 11 PM | ✅ Pass |
 | U6 | `beforeAfterShowsImprovement` | 8.3 → 5.5%/hr shows 20–45% better | ✅ Pass |
+| U7 | `activityParserSplitsForegroundAndBackground` | `st/wl/jb/nt/cpu` rows → times, wakelocks, jobs, data | New |
+| U8 | `humanParserReadsForegroundBackgroundSplit` | `fg: bg: fgs: cached:` → split mAh | New |
 
 ## 2. Manual — on the Samsung phone
 
@@ -35,6 +37,9 @@
 | B3 | Overnight | Readings continue (maybe sparser); no gap > 3 h while awake | ☐ |
 | B4 | Reboot phone | Readings resume without opening app | ☐ |
 | B5 | Compare with Settings → Battery | Apps tab top 5 ≈ same order and % | ☐ |
+| B6 | Apps → tap top app | Sheet shows on screen vs background, kept awake, jobs, data | ☐ |
+| B7 | Apps → Background activity filter | Lists only apps with hidden drain | ☐ |
+| B8 | Play music 30 min, screen off | Music app shows Foreground service ≈ 30 min | ☐ |
 
 ### C. Forecast
 

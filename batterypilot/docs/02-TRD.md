@@ -52,6 +52,10 @@
 | Labels | `scrn`→Screen, `cell`→Mobile network, `wifi`, `blue`, `idle`, `gnss`, `ambi`→AOD … |
 | Timeout | 25 s; output is streamed and only `pwi/pws` lines are kept (history can be MBs) |
 | No permission | Falls back to screen-time-based estimate |
+| Activity rows (v0.2) | Checkin `st` (top, fg service, foreground, background … ms), `wl` (partial wakelock ms before `p`), `jb` (jobs ms, count), `nt` (mobile/Wi-Fi bytes), `cpu` |
+| fg/bg mAh (v0.2) | Human dump UID lines `fg: … bg: … fgs: … cached: …` (Android 13+); missing → times only |
+| Background heavy | Split known: ≥ 2% and bg ≥ 40%. Else ≥ 3% and (drain ≫ screen time, or awake ≥ 30 min, or hidden ≥ 3 h) |
+| Cache | Report cached 2 min; UI does a fast pass (no dumpsys) then a full pass |
 
 ## 5. The model (on-device ML)
 

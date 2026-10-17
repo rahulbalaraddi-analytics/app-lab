@@ -82,7 +82,10 @@
 | Header | "Exact since last full charge" or "Screen time (estimate) + Do USB setup" |
 | Warning | "⚠ N apps drain mostly in the background" |
 | Row | App name · bar · % · mAh · on-screen time · `Background heavy` chip |
-| Tap | Opens the app's info page (Battery → Restricted) |
+| Summary (v0.2) | "Foreground vs background" split bar (blue = on screen, amber = background) + on-screen / hidden / kept-awake times |
+| Filter | All apps · Background activity |
+| Row extra | `on screen 1h · hidden 3h · awake 20m` + `NN% bg` chip |
+| Tap | Bottom sheet: verdict, split bar, table (on screen, background, fg service, kept awake, jobs, data, CPU), reasons, **Open App info → Battery** |
 
 ### History
 | Card | Columns |

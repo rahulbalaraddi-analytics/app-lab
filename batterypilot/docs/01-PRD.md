@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | App | BatteryPilot (Android) |
-| Version | v0.1 (MVP) |
+| Version | v0.2 |
 | Owner | rahulbalaraddi-analytics |
 | Status | Built, awaiting first test on a real phone |
 | Updated | 15 Oct 2026 |
@@ -44,6 +44,7 @@
 | F1 | **Drain dashboard** | Current %, %/hr now, screen-on time, temperature, health, chart of today | P0 |
 | F2 | **11 PM predictor** | Expected % at target, time of 0%, allowed %/hr, range, model confidence | P0 |
 | F3 | **Where it's going** | Screen / network / Wi-Fi / apps / idle split; per-app list; flag background-heavy apps | P0 |
+| F3b | **Foreground vs background** (v0.2) | Per app: on-screen vs background mAh (Android 13+), time running hidden, foreground service, kept-awake (wakelocks), jobs, mobile/Wi-Fi data; reasons + "what to do"; filter "Background activity" | P0 |
 | F4 | **Tick-box fixes** | Each fix shows +minutes/day, Auto or Guided; **Apply** button; **Undo** | P0 |
 | F5 | **Before / after** | Avg, screen-on, screen-off %/hr before vs after a change | P0 |
 | F6 | **Heads-up alert** | Max 1/day when forecast misses target; button to turn on Power saving | P1 |

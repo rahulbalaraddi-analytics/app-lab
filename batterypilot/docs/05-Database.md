@@ -102,6 +102,6 @@ erDiagram
 
 | Data | Why not stored |
 |---|---|
-| Per-app mAh | `dumpsys` already keeps "since full charge"; re-read on open |
+| Per-app mAh + fg/bg activity | `dumpsys` already keeps "since full charge"; re-read on open (2-min cache) |
 | Screen-on intervals / app usage | Android keeps the usage log; read on demand |
 | Model + forecast | Cheap to retrain (< 50 ms) on every open/worker run |
