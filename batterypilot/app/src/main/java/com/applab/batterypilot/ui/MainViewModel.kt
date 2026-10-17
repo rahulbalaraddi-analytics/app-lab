@@ -36,22 +36,45 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<UiState> = _state.asStateFlow()
     private var refreshJob: Job? = null
 
+    private var refreshAgain = false
+
+    /**
+     * Fast pass first (no dumpsys) so the screen updates at once, then the full pass with
+     * exact per-app numbers. A refresh asked for while one is running is queued, not dropped.
+     */
     fun refresh(record: Boolean = true) {
-        if (refreshJob?.isActive == true) return
+        if (refreshJob?.isActive == true) { refreshAgain = true; return }
         refreshJob = viewModelScope.launch {
-            _state.update { it.copy(loading = true) }
-            if (record) Engine.recordNow(ctx, "open")
-            val snap = runCatching { Engine.snapshot(ctx) }.getOrElse { e ->
-                _state.update { it.copy(loading = false, message = "Couldn't analyse: ${e.message}") }
-                return@launch
-            }
-            _state.update { s ->
-                // Drop selections that are now done.
-                val stillOpen = snap.fixes.filter { it.done != true }.map { it.id }.toSet()
-                s.copy(snap = snap, loading = false, selected = s.selected intersect stillOpen)
-            }
+            do {
+                refreshAgain = false
+                _state.update { it.copy(loading = true) }
+                if (record) Engine.recordNow(ctx, "open")
+                for (withReport in listOf(false, true)) {
+                    val snap = runCatching { Engine.snapshot(ctx, withReport) }.getOrElse { e ->
+                        _state.update { it.copy(loading = false, message = "Couldn't analyse: ${e.message}") }
+                        return@launch
+                    }
+                    if (!withReport && !snap.access.batteryStats) {
+                        publish(snap); break
+                    }
+                    publish(snap, done = withReport)
+                }
+            } while (refreshAgain)
         }
     }
+
+    private fun publish(snap: Snapshot, done: Boolean = true) = _state.update { s ->
+        // Keep exact per-app rows from the last full pass while the fast pass runs.
+        val merged = if (!done && s.snap != null && snap.apps.firstOrNull()?.source != "exact" &&
+            s.snap.apps.firstOrNull()?.source == "exact"
+        ) snap.copy(apps = s.snap.apps, parts = s.snap.parts, fixes = s.snap.fixes) else snap
+        val stillOpen = merged.fixes.filter { it.done != true }.map { it.id }.toSet()
+        s.copy(snap = merged, loading = !done, selected = s.selected intersect stillOpen)
+    }
+
+    /** Show a settings change immediately, before the re-analysis finishes. */
+    private fun patchPrefs(f: (com.applab.batterypilot.analysis.PrefsView) -> com.applab.batterypilot.analysis.PrefsView) =
+        _state.update { s -> s.copy(snap = s.snap?.let { it.copy(prefs = f(it.prefs)) }) }
 
     fun toggle(id: String) = _state.update {
         it.copy(selected = if (id in it.selected) it.selected - id else it.selected + id)
@@ -130,11 +153,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---------- settings ----------
 
     private val prefs get() = Prefs(ctx)
-    fun setTargetHour(h: Int) { prefs.targetHour = h; refresh(false) }
-    fun setBuffer(p: Int) { prefs.bufferPct = p; refresh(false) }
-    fun setAlerts(on: Boolean) { prefs.alertsOn = on; refresh(false) }
+    fun setTargetHour(h: Int) { prefs.targetHour = h; patchPrefs { it.copy(targetHour = prefs.targetHour) }; refresh(false) }
+    fun setBuffer(p: Int) { prefs.bufferPct = p; patchPrefs { it.copy(bufferPct = prefs.bufferPct) }; refresh(false) }
+    fun setAlerts(on: Boolean) { prefs.alertsOn = on; patchPrefs { it.copy(alertsOn = on) }; refresh(false) }
     fun setSmartSaver(on: Boolean) {
         prefs.smartSaver = on
+        patchPrefs { it.copy(smartSaver = on) }
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 AppDatabase.get(ctx).fixes().insert(
@@ -144,5 +168,5 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             refresh(false)
         }
     }
-    fun setSaverBelow(p: Int) { prefs.saverBelowPct = p; refresh(false) }
+    fun setSaverBelow(p: Int) { prefs.saverBelowPct = p; patchPrefs { it.copy(saverBelowPct = prefs.saverBelowPct) }; refresh(false) }
 }
