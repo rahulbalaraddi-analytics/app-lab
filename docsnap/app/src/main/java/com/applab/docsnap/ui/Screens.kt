@@ -188,7 +188,7 @@ fun InitialsDialog(current: String, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("Your initials") },
+        title = { Text("Your name") },
         text = {
             Column {
                 Text("Used in every file name so phones never clash, e.g. SB.")

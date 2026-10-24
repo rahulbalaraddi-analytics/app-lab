@@ -58,6 +58,7 @@ private fun App(activity: Activity, store: Store) {
     var help by remember { mutableStateOf<HelpTopic?>(null) }
     var tutorial by rememberSaveable { mutableStateOf(!store.tutorialSeen) }
     var refreshing by remember { mutableStateOf(false) }
+    var connected by remember { mutableStateOf(store.isConnected) }
     val scope = rememberCoroutineScope()
     val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -194,11 +195,11 @@ private fun App(activity: Activity, store: Store) {
         }
         return
     }
-    if (!store.isConnected || route == "connect") {
+    if (!connected || route == "connect") {
         ConnectScreen(
             store = store, withToken = withToken,
-            onConnected = { route = "home"; tick++; toast("Connected: ${store.folders().size} folders") },
-            onBack = if (store.isConnected) ({ route = "settings" }) else null,
+            onConnected = { connected = true; route = "home"; tick++; toast("Connected: ${store.folders().size} folders") },
+            onBack = if (connected) ({ route = "settings" }) else null,
         )
         return
     }

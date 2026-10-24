@@ -79,7 +79,7 @@ fun ConnectScreen(store: Store, withToken: WithToken, onConnected: () -> Unit, o
     fun connect() {
         val id = DriveApi.folderIdFromLink(link)
         if (id == null) { message = "That doesn't look like a Drive folder link. Copy it again from Drive or WhatsApp." to true; return }
-        if (initials.trim().length < 2) { message = "Type your initials first (2–3 letters)." to true; return }
+        if (initials.trim().length < 2) { message = "Type your name first (e.g. RAHUL)." to true; return }
         busy = true; message = null
         withToken { token ->
             scope.launch {
@@ -156,14 +156,15 @@ fun ConnectScreen(store: Store, withToken: WithToken, onConnected: () -> Unit, o
 
             StepCard(3, "About you", done = false) {
                 OutlinedTextField(
-                    value = initials, onValueChange = { initials = it.take(3) }, singleLine = true,
-                    label = { Text("Your initials (e.g. SB)") }, modifier = Modifier.fillMaxWidth(),
+                    value = initials, onValueChange = { initials = it.filter { c -> c.isLetterOrDigit() }.take(12) }, singleLine = true,
+                    label = { Text("Your name (e.g. RAHUL, ROHAN, PRIYA)") }, modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
                 Text("I will speak names in", fontSize = 14.sp, color = Palette.Quiet)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = language == "en-IN", onClick = { language = "en-IN" }, label = { Text("English") })
                     FilterChip(selected = language == "kn-IN", onClick = { language = "kn-IN" }, label = { Text("ಕನ್ನಡ") })
+                    FilterChip(selected = language == "mixed", onClick = { language = "mixed" }, label = { Text("Both") })
                 }
             }
 
@@ -215,7 +216,7 @@ fun SettingsScreen(store: Store, onBack: () -> Unit, onChangeFolder: () -> Unit,
                     Text("Drive folder", fontSize = 13.sp, color = Palette.Quiet)
                     Text(store.rootFolderName, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(store.accountEmail, color = Palette.Quiet)
-                    Text("You: ${store.initials}", color = Palette.Quiet)
+                    Text("Name in file names: ${store.initials}", color = Palette.Quiet)
                 }
             }
             Spacer(Modifier.height(12.dp))

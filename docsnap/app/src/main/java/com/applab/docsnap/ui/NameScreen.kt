@@ -153,14 +153,14 @@ fun NameScreen(store: Store, draft: Draft, onSaved: (Doc) -> Unit, onHelp: () ->
                     )
                     Text("Say the name", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 }
-                FilterChip(selected = language == "en-IN", onClick = {
-                    language = "en-IN"; store.language = language; if (listening) startListening()
-                }, label = { Text("EN") })
-                Spacer(Modifier.width(6.dp))
-                FilterChip(selected = language == "kn-IN", onClick = {
-                    language = "kn-IN"; store.language = language; if (listening) startListening()
-                }, label = { Text("ಕನ್ನಡ") })
                 HelpButton(onHelp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("en-IN" to "English", "kn-IN" to "ಕನ್ನಡ", PhoneSpeech.MIXED to "Both").forEach { (code, label) ->
+                    FilterChip(selected = language == code, onClick = {
+                        language = code; store.language = code; if (listening) startListening()
+                    }, label = { Text(label, fontSize = 15.sp) })
+                }
             }
 
             if (lowPages > 0) {

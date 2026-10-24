@@ -91,7 +91,15 @@ class PhoneSpeech(
 
     private fun buildIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (language == MIXED) "kn-IN" else language)
+        if (language == MIXED && Build.VERSION.SDK_INT >= 34) {
+            // Android 14+: let the engine detect and switch between English and Kannada mid-sentence
+            val both = arrayListOf("en-IN", "kn-IN")
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_DETECTION, true)
+            putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_DETECTION_ALLOWED_LANGUAGES, both)
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED)
+            putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES, both)
+        }
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
         putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5_000L)
@@ -194,6 +202,8 @@ class PhoneSpeech(
 
     companion object {
         const val SAMPLE_RATE = 16_000
+        /** English + Kannada in one sentence. */
+        const val MIXED = "mixed"
         private const val MAX_RESTARTS = 500
 
         fun isAvailable(context: Context) = SpeechRecognizer.isRecognitionAvailable(context)
