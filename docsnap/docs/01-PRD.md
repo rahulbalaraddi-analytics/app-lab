@@ -121,3 +121,32 @@
 ## 9. Out of scope (MVP)
 
 iPhone · Play Store listing · PDF editing · cloud OCR · use without a Google account.
+
+## 10. Help & tutorial (self-serve, for 65+ users)
+
+- **First launch:** short swipe tutorial: 3 steps, 5 photo tips with drawn YES / NO pictures, Single vs Multi-page, how to say a name, "nothing gets lost". Big text, one idea per screen, Skip allowed.
+- **? button on every main screen** (Home, Folder, Multi-page, Name) opens tips for that screen; Folder and Multi-page help repeat the photo tips; every sheet links to the full tutorial.
+
+| Photo tip | YES | NO |
+|---|---|---|
+| Background | Black cloth / black chart paper | Wood table, patterned bedsheet |
+| Light | Window daylight, 2 side lamps | Flash, bright spot, own shadow |
+| Angle | Phone flat above the paper | Phone tilted |
+| Corners | All 4 inside, small gap | A corner cut off |
+| Paper | Flat, folds pressed, hands away | Fingers holding, folds showing |
+
+Recommended kit: an overhead phone stand (~₹500–800) + one black cloth.
+
+## 11. Notifications
+
+| When | Message |
+|---|---|
+| Upload batch finished | "5 of 5 uploaded — all safe in Drive › Land Properties" |
+| Upload failed | "2 could not upload — will try again" / "open DocSnap to check" after many tries |
+| Many waiting | "12 documents waiting — connect to Wi-Fi and tap Upload all" |
+| Unfinished document | "7 pages saved but not named yet" |
+| Low storage | "Phone storage almost full — upload and free space" |
+
+## 12. Sharing & setup
+
+[SETUP-PROMPT.md](../SETUP-PROMPT.md): what DocSnap is (shareable) + a ready prompt for Claude to plan folders, create them in Drive, share them and write the WhatsApp message.

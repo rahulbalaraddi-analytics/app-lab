@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -88,7 +89,7 @@ import java.io.File
 // ---------------------------------------------------------------- shared pieces
 
 @Composable
-fun Page(dark: Boolean = false, content: @Composable () -> Unit) {
+fun Page(dark: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
@@ -99,7 +100,7 @@ fun Page(dark: Boolean = false, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun Header(title: String, kicker: String? = null, onBack: (() -> Unit)? = null, teal: Boolean = false) {
+fun Header(title: String, kicker: String? = null, onBack: (() -> Unit)? = null, teal: Boolean = false, onHelp: (() -> Unit)? = null) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -113,10 +114,11 @@ fun Header(title: String, kicker: String? = null, onBack: (() -> Unit)? = null, 
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ink)
             }
         } else Spacer(Modifier.width(8.dp))
-        Column {
+        Column(Modifier.weight(1f)) {
             if (kicker != null) Text(kicker, fontSize = 13.sp, color = if (teal) Color.White.copy(0.9f) else Palette.Quiet)
             Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ink)
         }
+        if (onHelp != null) HelpButton(onHelp, tint = ink)
     }
 }
 
@@ -218,7 +220,7 @@ fun RecoveryDialog(draft: Draft, onContinue: () -> Unit, onDiscard: () -> Unit) 
 // ---------------------------------------------------------------- home
 
 @Composable
-fun HomeScreen(store: Store, tick: Int, onFolder: (Folder) -> Unit, onPhone: () -> Unit, onFeedback: () -> Unit) {
+fun HomeScreen(store: Store, tick: Int, onFolder: (Folder) -> Unit, onPhone: () -> Unit, onFeedback: () -> Unit, onHelp: () -> Unit) {
     val today = remember(tick) { store.docsToday() }
     Page {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
@@ -228,6 +230,7 @@ fun HomeScreen(store: Store, tick: Int, onFolder: (Folder) -> Unit, onPhone: () 
                     Text("DocSnap", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     Text("Test build ${store.appVersion} · ${store.initials}", fontSize = 14.sp, color = Palette.Quiet)
                 }
+                HelpButton(onHelp)
             }
             Spacer(Modifier.height(16.dp))
             CardBox {
@@ -285,13 +288,13 @@ private fun SmallAction(text: String, icon: ImageVector, modifier: Modifier, onC
 // ---------------------------------------------------------------- folder
 
 @Composable
-fun FolderScreen(store: Store, folder: Folder, tick: Int, onBack: () -> Unit, onStart: (Folder, Mode) -> Unit) {
+fun FolderScreen(store: Store, folder: Folder, tick: Int, onBack: () -> Unit, onStart: (Folder, Mode) -> Unit, onHelp: () -> Unit) {
     val docs = remember(tick, folder) { store.docs(folder) }
     val context = LocalContext.current
     BackHandler(onBack = onBack)
     Page {
         Column(Modifier.fillMaxSize()) {
-            Header(folder.name, kicker = "SCANNING INTO", onBack = onBack, teal = true)
+            Header(folder.name, kicker = "SCANNING INTO", onBack = onBack, teal = true, onHelp = onHelp)
             Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ModeCard("Single page", "Photo → name → next. Fastest.", Icons.Filled.Description, true, Modifier.weight(1f)) {
                     onStart(folder, Mode.SINGLE)
@@ -364,7 +367,7 @@ private fun openPdf(context: android.content.Context, d: Doc) {
 @Composable
 fun StripScreen(
     store: Store, draftId: String, tick: Int,
-    onScanMore: () -> Unit, onDone: () -> Unit, onCancel: () -> Unit,
+    onScanMore: () -> Unit, onDone: () -> Unit, onCancel: () -> Unit, onHelp: () -> Unit,
 ) {
     var version by remember { mutableIntStateOf(0) }
     val draft = remember(tick, version) { store.draft(draftId) } ?: return
@@ -389,6 +392,7 @@ fun StripScreen(
                     Spacer(Modifier.width(6.dp))
                     Text("${draft.pages.size} saved on phone", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7DD3C8))
                 }
+                HelpButton(onHelp, tint = Color.White)
             }
 
             val low = metrics.count { it.quality == Quality.LOW }

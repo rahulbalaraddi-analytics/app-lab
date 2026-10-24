@@ -58,6 +58,10 @@ class Store(private val context: Context) {
         get() = prefs.getString("initials", "").orEmpty()
         set(v) = prefs.edit().putString("initials", v.uppercase(Locale.ROOT).take(3)).apply()
 
+    var tutorialSeen: Boolean
+        get() = prefs.getBoolean("tutorialSeen", false)
+        set(v) = prefs.edit().putBoolean("tutorialSeen", v).apply()
+
     var language: String
         get() = prefs.getString("language", "en-IN") ?: "en-IN"
         set(v) = prefs.edit().putString("language", v).apply()

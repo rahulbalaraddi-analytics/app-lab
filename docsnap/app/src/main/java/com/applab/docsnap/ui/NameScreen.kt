@@ -68,7 +68,7 @@ import kotlinx.coroutines.withContext
  * Speech fills the text box; typing into it is the fallback.
  */
 @Composable
-fun NameScreen(store: Store, draft: Draft, onSaved: (Doc) -> Unit) {
+fun NameScreen(store: Store, draft: Draft, onSaved: (Doc) -> Unit, onHelp: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var language by remember { mutableStateOf(store.language) }
@@ -160,6 +160,7 @@ fun NameScreen(store: Store, draft: Draft, onSaved: (Doc) -> Unit) {
                 FilterChip(selected = language == "kn-IN", onClick = {
                     language = "kn-IN"; store.language = language; if (listening) startListening()
                 }, label = { Text("ಕನ್ನಡ") })
+                HelpButton(onHelp)
             }
 
             if (lowPages > 0) {

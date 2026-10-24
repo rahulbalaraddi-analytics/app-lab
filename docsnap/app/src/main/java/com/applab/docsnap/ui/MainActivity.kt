@@ -1,6 +1,8 @@
 package com.applab.docsnap.ui
 
+import android.Manifest
 import android.app.Activity
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -44,6 +46,9 @@ private fun App(activity: Activity, store: Store) {
     var tick by remember { mutableIntStateOf(0) }
     var askInitials by remember { mutableStateOf(store.initials.isBlank()) }
     var recovery by remember { mutableStateOf<Draft?>(null) }
+    var help by remember { mutableStateOf<HelpTopic?>(null) }
+    var tutorial by rememberSaveable { mutableStateOf(!store.tutorialSeen) }
+    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     LaunchedEffect(Unit) {
         recovery = store.unfinishedDrafts().firstOrNull()
@@ -98,6 +103,17 @@ private fun App(activity: Activity, store: Store) {
 
     fun folderOf(name: String) = store.folders().firstOrNull { it.name == name } ?: store.folders().first()
 
+    if (tutorial) {
+        TutorialScreen {
+            tutorial = false
+            store.tutorialSeen = true
+            if (Build.VERSION.SDK_INT >= 33) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        return
+    }
+
+    help?.let { t -> HelpSheet(t, onClose = { help = null }, onTutorial = { help = null; tutorial = true }) }
+
     when {
         askInitials -> InitialsDialog(store.initials) {
             store.initials = it
@@ -123,11 +139,13 @@ private fun App(activity: Activity, store: Store) {
             onFolder = { route = "folder:${it.name}" },
             onPhone = { route = "phone" },
             onFeedback = { route = "feedback" },
+            onHelp = { help = HelpTopic.HOME },
         )
         r.startsWith("folder:") -> FolderScreen(
             store = store, folder = folderOf(r.removePrefix("folder:")), tick = tick,
             onBack = { route = "home" },
             onStart = { f, m -> startDoc(f, m) },
+            onHelp = { help = HelpTopic.FOLDER },
         )
         r.startsWith("strip:") -> {
             val d = store.draft(r.removePrefix("strip:"))
@@ -136,6 +154,7 @@ private fun App(activity: Activity, store: Store) {
                 onScanMore = { launchScanner(d.id, BATCH) },
                 onDone = { route = "name:${d.id}" },
                 onCancel = { store.discardDraft(d.id); route = "folder:${d.folder.name}" },
+                onHelp = { help = HelpTopic.PAGES },
             )
         }
         r.startsWith("name:") -> {
@@ -153,6 +172,7 @@ private fun App(activity: Activity, store: Store) {
                         route = "folder:${d.folder.name}"
                     }
                 },
+                onHelp = { help = HelpTopic.NAME },
             )
         }
         r == "phone" -> PhoneCheckScreen(store) { route = "home" }

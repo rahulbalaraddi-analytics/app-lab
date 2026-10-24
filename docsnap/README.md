@@ -2,7 +2,9 @@
 
 Scan family papers **fast**: New Document → take pages → **Done** → **say the name** → one PDF, uploaded to a shared Google Drive folder. Built to digitise ~2,000–2,500 documents with 4–5 people on different phones, then hand the Drive folder to Claude to clean names and build a register.
 
-**Status:** 📐 Planning — PRD, TRD and screen designs ready for review. No code yet.
+**Status:** 🛠 v0.1 test build — scanning, naming, lossless PDF, quality log, tutorial. Drive link + upload next.
+
+**Set up your Drive with Claude:** [SETUP-PROMPT.md](SETUP-PROMPT.md)
 
 ## What it does (MVP)
 
@@ -15,6 +17,8 @@ Scan family papers **fast**: New Document → take pages → **Done** → **say 
 | **Voice naming** | Mic opens after Done; English or Kannada; text becomes the file name |
 | **Folders** | Owner creates them at the start; same folders on every phone (read from Drive) |
 | **Upload** | Queue uploads by itself when online, Wi-Fi-only option, retries, no clashes between phones |
+| **Self-serve help** | First-launch tutorial with YES/NO photo pictures; **?** button on every screen |
+| **Notifications** | "5 of 5 uploaded", failures, waiting items, unfinished document, low storage |
 | **Claude handoff** | Each Drive folder gets one index CSV per person: file name, full transcript, pages, who, when |
 
 ## Docs

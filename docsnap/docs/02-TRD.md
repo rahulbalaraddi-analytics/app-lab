@@ -138,3 +138,12 @@ Written locally, then uploaded with the next upload batch to `Family Documents/_
 ## 12. Storage note
 
 - A scanned PDF **is** its page images. We store **only the PDF** (images inside it), not separate image files. HD size comes from those embedded JPEGs.
+
+## 13. Tutorial, help and notifications
+
+| Part | Implementation |
+|---|---|
+| Tutorial | `ui/Tutorial.kt` — `HorizontalPager`, shown once (`tutorialSeen` pref), re-openable from any help sheet |
+| Pictures | Drawn in code with Compose `Canvas` (`SceneArt`): works offline, no image assets, crisp on any screen |
+| ? help | `HelpButton` in each screen header → `HelpSheet(topic)` (`ModalBottomSheet`) |
+| Notifications | `Notifier.kt` — channels Uploads + Reminders; POST_NOTIFICATIONS asked after the tutorial (Android 13+). Upload notifications fire from the upload worker (Drive build) |
