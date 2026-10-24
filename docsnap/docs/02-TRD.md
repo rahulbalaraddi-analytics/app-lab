@@ -113,3 +113,28 @@ Camera (ML Kit), Microphone, Internet, Post notifications (upload progress). No 
 | Two people scan the same doc | sha256 skips exact copies; Claude flags near-copies |
 | Wrong folder chosen | Folder name banner on every scan screen; move before upload |
 | Forgot to tap Done between docs | Page count on Done button; Split (v2) |
+
+## 10. Local-first uploads
+
+- Folder list cached in Room; PDFs always written locally first into `<folder>/`.
+- Upload mode (Settings): **Manual (default)** — *Upload all* sends everything together; or **Auto on Wi-Fi** (WorkManager, unmetered constraint).
+- Upload is a background worker: the UI never blocks on Drive.
+- Folders are created only in Drive; app reads them on Refresh. Folders starting with `_` are hidden.
+
+## 11. Analytics & quality log
+
+Written locally, then uploaded with the next upload batch to `Family Documents/_DocSnap_Analytics/`:
+
+| File | Contents |
+|---|---|
+| `device_<initials>_<model>.json` | Model, manufacturer, Android/SDK, app version, back-camera max resolution (Camera2 `SCALER_STREAM_CONFIGURATION_MAP`), free storage, speech language packs |
+| `docs_<initials>.csv` | file_name, folder, mode, pages, per-page width×height, MP, est. DPI (long side ÷ 11.69 in), file bytes, seconds taken, retakes, pages deleted, name source (speech/typed), upload attempts, status |
+| `events_<initials>.csv` | timestamp, type (crash_recovered, draft_discarded, upload_failed, refresh, speech_failed, low_quality_page), detail |
+| `feedback_<initials>.csv` | timestamp, typed/spoken complaint |
+
+- Quality flag per page: **GOOD ≥ 8 MP · OK 5–8 MP · LOW < 5 MP**; LOW shows "Low quality — retake closer" immediately.
+- No images or document text in logs — file names only.
+
+## 12. Storage note
+
+- A scanned PDF **is** its page images. We store **only the PDF** (images inside it), not separate image files. HD size comes from those embedded JPEGs.

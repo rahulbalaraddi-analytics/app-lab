@@ -43,3 +43,12 @@
 ## Index CSV (on Drive, one per person per folder)
 
 `file_name, transcript, language, person, pages, scanned_at, folder, drive_link`
+
+## Analytics tables (local, mirrored to Drive as CSV)
+
+| Table | Columns |
+|---|---|
+| **page_metric** | document_id, page_no, width_px, height_px, megapixels, est_dpi, bytes, quality (GOOD/OK/LOW) |
+| **doc_metric** | document_id, mode, seconds_taken, retakes, pages_deleted, name_source |
+| **event** | id, ts, type, detail |
+| **feedback** | id, ts, text, audio_path |

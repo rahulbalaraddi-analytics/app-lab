@@ -73,7 +73,9 @@
 | Voice naming → auto file name (English, Kannada) | ✓ | |
 | Audio clip kept on phone only, 30 days | ✓ | |
 | Folders created by owner, same on all phones | ✓ | |
-| Auto-upload queue, Wi-Fi-only, retry | ✓ | |
+| Upload mode: Manual "Upload all" (default) or Auto on Wi-Fi; never blocks scanning | ✓ | |
+| Analytics + quality log per phone to Drive `_DocSnap_Analytics` | ✓ | |
+| Report a problem button | ✓ | |
 | Status per file: waiting / on Drive / failed | ✓ | |
 | Index CSV per person per folder | ✓ | |
 | Import photos/PDFs from gallery | ✓ | |
