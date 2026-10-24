@@ -8,6 +8,7 @@ Android apps built from everyday ideas — offline-first, privacy-friendly, buil
 |---|---|---|
 | [**IdeaDrop**](ideadrop/) | Speak an idea anytime → offline transcription → timestamped notes → checklist | 🛠 In development |
 | [**BatteryPilot**](batterypilot/) | Battery analytics on the phone → forecast to 11 PM → tick-box fixes → before/after | 🛠 In development |
+| [**DocSnap**](docsnap/) | Scan family papers → pages → Done → speak the name → one PDF → shared Google Drive | 📐 Planning |
 | Swipe Cleaner | Clean photos & videos with swipe gestures | ⏳ Moving in |
 | Nostalgica Games | Small, calm casual games | ⏳ Moving in |
 
@@ -19,6 +20,7 @@ Each app is a standalone Android Studio project in its own folder:
 app-lab/
 ├── ideadrop/
 ├── batterypilot/
+├── docsnap/
 ├── swipe-cleaner/      (coming)
 └── nostalgica-games/   (coming)
 ```
