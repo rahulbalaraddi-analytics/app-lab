@@ -160,6 +160,15 @@ Written locally, then uploaded with the next upload batch to `Family Documents/_
 
 ### Google Cloud setup (one time)
 
-1. Project created; **Google Drive API** enabled.
-2. Google Auth Platform: app name DocSnap, audience External, publish (unverified apps are capped at 100 users and show a warning once).
-3. Credentials → OAuth client → **Android**: package `com.applab.docsnap`, SHA-1 `29:A6:43:50:E6:47:8F:02:7E:11:EE:A3:1D:8F:40:49:C1:5B:DE:94` (shared debug key in `app/debug.keystore`).
+Done 24 Oct 2026 on the owner's Claude 2026 Google account:
+
+| Item | Value |
+|---|---|
+| Project | **DocSnap** (`docsnap-512609`) |
+| API | Google Drive API — enabled |
+| Google Auth Platform | App name DocSnap, audience **External**, status **Testing** |
+| OAuth client | **Android** "DocSnap Android": package `com.applab.docsnap`, SHA-1 `29:A6:43:50:E6:47:8F:02:7E:11:EE:A3:1D:8F:40:49:C1:5B:DE:94` (shared debug key `app/debug.keystore`) |
+| Test users | rahul.claudeai.2026@gmail.com — **add every helper's Gmail** under Audience → Test users (max 100) |
+
+- Testing status: only listed test users can sign in; Google may ask them to sign in again about weekly. The app then shows "Uploads paused — sign in again", and tapping **Upload all** signs in again.
+- Moving to Production later needs the Branding page completed (privacy policy link etc.).
