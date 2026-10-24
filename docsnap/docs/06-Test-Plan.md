@@ -5,10 +5,15 @@
 | # | Test | Phones | Pass when |
 |---|---|---|---|
 | 0 | **Spike:** helper account uploads into owner's shared folder | 2 | File appears in owner's Drive; note login warning + token expiry |
-| 1 | 1-page doc end to end | oldest | ≤ 30 sec from New Document to next document |
-| 2 | 8-page doc | any | One 8-page PDF, pages in order |
-| 3 | Add page after save (before upload) | any | Same file, N+1 pages |
-| 4 | Single-page mode, 20 docs in a row | any | 20 PDFs, no extra taps |
+| 0b | **Quality spike:** ML Kit page resolution + file size | S21 FE + oldest | ≥ 8 MP per A4 page; else switch to CameraX + OpenCV |
+| 0c | JPEG → PDF loss check | any | Image extracted from PDF is byte-identical to the captured JPEG |
+| 1 | Single page, 20 papers in a row | oldest | ≤ 30 sec each, photo → name → next |
+| 2 | Multi-page, 12 pages | any | One 12-page PDF, pages in order |
+| 3 | Swipe page 7 up | any | Page gone, Undo works, PDF has 11 pages |
+| 3b | Kill app at page 23 of multi-page | any | Reopen shows 20 saved pages; Continue works |
+| 4 | Try to leave naming screen without a name | any | Impossible: back/next blocked until named |
+| 4b | Speech engine offline / fails | any | Type fallback works; doc still named |
+| 4c | Paste folder link on a new phone, Refresh after owner adds a folder in Drive | 2 | Same folder list on both phones |
 | 5 | Kannada name | S21 FE + oldest | Transcript in Kannada in CSV; Latin slug in file name |
 | 6 | Airplane mode, 10 docs | any | All saved; upload starts when back online |
 | 7 | Kill app mid-upload | any | Resumes; no duplicates on Drive |

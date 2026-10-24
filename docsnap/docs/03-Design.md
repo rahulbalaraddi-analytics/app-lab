@@ -1,6 +1,6 @@
 # DocSnap — Design (UI / UX)
 
-**TL;DR:** 6 screens, big buttons, one teal action colour, amber for "listening / waiting". Built for parents and helpers who just want to scan and talk. Mockups: [DocSnap app screens](https://claude.ai/artifact/GQHHoVhS8rpCQWDp5UmbAc) (private canvas — share from its Share menu).
+**TL;DR:** 7 screens (v2), big buttons, one teal action colour, amber for "listening / waiting". Built for parents and helpers who just want to scan and talk. Mockups: [DocSnap app screens](https://claude.ai/artifact/GQHHoVhS8rpCQWDp5UmbAc) (private canvas — share from its Share menu).
 
 ## 1. Principles
 
@@ -26,16 +26,17 @@
 
 | # | Screen | Key elements |
 |---|---|---|
-| 1 | Folders (home) | Scanned today, Waiting to upload, folder cards (code chip + count), New Document |
-| 2 | Inside a folder | Teal "Scanning into" banner, Single-page mode toggle, doc list with status, New Document |
-| 3 | Pages, then Done | Page thumbnails, Add page, reorder/retake, **Done – 3 pages** |
-| 4 | Speak the name | EN / ಕನ್ನಡ toggle, big amber mic, "You said", file-name preview, Re-record / Edit, auto-save countdown |
-| 5 | Upload queue | Progress bar, queue with Waiting / Uploading / Failed, Wi-Fi-only, Upload all now |
-| 6 | Setup (owner) | Google account, shared folder, initials, language, owner-only folder list + Add folder |
+| 0 | Connect (first launch) | Google sign-in ✓, paste Drive folder link, "Found: Family Documents · 10 folders", initials, language |
+| 1 | Folders + Refresh | Scanned today, Waiting to upload, folders from Drive, **Refresh** button, last refreshed time |
+| 2 | Pick mode | Teal "Scanning into" banner, two big buttons **Single page** / **Multi-page**, doc list with status |
+| 3a | Single page: edges | Blue outline + 4 corner handles, Original / Grayscale / Rotate, Retake / Looks good |
+| 3b | Multi-page | Live camera, "10 pages saved" badge, bottom page strip, swipe up to delete, Scan more / **Done – 12 pages** |
+| 4 | Speak the name | EN / ಕನ್ನಡ, big amber mic, "You said", file-name preview, Re-record / Edit, **Save & next** with lock note |
+| 5 | Upload queue | Progress bar, Waiting / Uploading / Failed, Wi-Fi-only, Upload all now |
 
 ## 4. Navigation
 
-Folders → Folder → (Google scanner camera) → Pages → Name → back to Folder (next doc). Uploads and Setup open from Home.
+Connect (once) → Folders → Folder → Single page: camera → Edges → Name → camera again · Multi-page: camera + strip → Done → Name → Folder. Uploads and Connect open from Home.
 
 ## 5. Copy rules
 

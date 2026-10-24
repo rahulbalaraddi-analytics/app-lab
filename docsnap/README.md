@@ -8,8 +8,10 @@ Scan family papers **fast**: New Document → take pages → **Done** → **say 
 
 | Area | What you get |
 |---|---|
-| **Scan** | Google ML Kit scanner: edge detect, auto-crop, filters, multi-page — on the phone, free |
-| **One document = one PDF** | Any number of pages until **Done**; optional Single-page mode (auto-Done after 1 photo) |
+| **Connect** | Paste the shared Drive folder link once; **Refresh** pulls all its folders — same on every phone |
+| **Two modes** | **Single page**: photo → name → next · **Multi-page**: pages in a bottom strip (swipe up to delete) → Done |
+| **No loss** | Multi-page saved every 5 pages, crash recovery, **name is compulsory** |
+| **Quality** | HD pages, edge detect + 4-corner crop, Original colour, JPEG embedded in PDF with zero re-compression |
 | **Voice naming** | Mic opens after Done; English or Kannada; text becomes the file name |
 | **Folders** | Owner creates them at the start; same folders on every phone (read from Drive) |
 | **Upload** | Queue uploads by itself when online, Wi-Fi-only option, retries, no clashes between phones |

@@ -25,6 +25,8 @@ Scan ─► Pages ─► Done ─► Speak name ─► Save ─► Upload queue 
 | Scanner | ML Kit Document Scanner `play-services-mlkit-document-scanner` | Free, on-device, ready scan UI, multi-page, PDF out, ~300 KB app size |
 | Speech | Phone engine via `SpeechRecognizer`, en-IN / kn-IN — **reuse `ideadrop/.../speech/PhoneSpeech.kt`** | Free, offline with language pack, keeps audio on Android 13+ |
 | Local DB | Room | Docs + upload state |
+| PDF | PdfBox-Android (Apache 2.0) | Embeds JPEGs without re-compression |
+| Fallback capture | CameraX + OpenCV | Only if ML Kit resolution is too low |
 | Files | App files dir `/<folder>/` | Survives updates |
 | Upload | Google Drive REST API v3 + WorkManager | Resumable, retry, Wi-Fi / charging constraints |
 | Sign-in | Credential Manager (Google) + OAuth Drive scope | Each helper uses own Gmail |
@@ -33,15 +35,26 @@ Scan ─► Pages ─► Done ─► Speak name ─► Save ─► Upload queue 
 
 ## 3. Scanning
 
-- `SCANNER_MODE_FULL`, gallery import on, page limit 50; Single-page mode → page limit 1.
-- Request **PDF only** (each extra format costs processing time).
-- After the scanner returns, DocSnap shows its own **Pages** screen: thumbnails, Add page (relaunches scanner and appends), reorder, delete, **Done – N pages**. Merging/appending done with Android `PdfRenderer`/`PdfDocument` or page JPEGs → PDF.
-- First launch downloads scanner models via Play services — do it on Wi-Fi during setup.
-- The camera screen itself is Google's; we cannot restyle it.
+| Topic | How |
+|---|---|
+| Mode | User picks **Single page** (scanner `pageLimit = 1`, loop straight to naming) or **Multi-page** |
+| Multi-page checkpoints | Scanner launched in **batches of 5** (`pageLimit = 5`). Each batch's JPEGs are copied into a draft folder + DB rows **before** the next batch opens. Crash → at most 4 pages lost |
+| Recovery | On app start, any draft without a name → "Unfinished document: N pages — Continue / Discard" |
+| Page strip | Our Compose screen: horizontal thumbnails, swipe-up = delete (with Undo snackbar), tap = re-crop, long-press = reorder |
+| Edges & crop | ML Kit `SCANNER_MODE_FULL`: live edge outline, auto-capture, 4-corner crop, rotate, perspective fix |
+| Colour | Default **Original**; auto-enhance off by default (protects stamps, ink signatures) |
+| Output requested | **JPEG pages only** (not ML Kit's PDF) so we control the PDF |
+| JPEG → PDF | **PdfBox-Android** `JPEGFactory.createFromStream` embeds the JPEG bytes unchanged (DCT pass-through) → **zero re-compression**. Page size set from image pixels at 300 DPI |
+| Resolution | **ML Kit does not expose resolution or JPEG quality.** Day-1 spike measures MP + file size on S21 FE and the oldest phone |
+| Fallback | If below ~8 MP/page: own capture with **CameraX** (max resolution, JPEG 95) + **OpenCV** edge detect / warp + our crop UI. Adds ~3–4 days |
+| First launch | Scanner models download via Play services — do it on Wi-Fi during setup |
+
+- The camera and crop screens in ML Kit mode are Google's; we cannot restyle them (CameraX fallback is fully ours).
 
 ## 4. Voice naming
 
-- Auto-start after Done; stop on 2 sec silence or 30 sec max.
+- Auto-start after Done (multi-page) or after crop (single page); stop on 2 sec silence or 30 sec max.
+- **Name lock:** Save & next is disabled until transcript/typed text is non-empty and the PDF + DB row are written. No skip path exists in the UI; back button returns to the naming screen while a named-less doc exists.
 - Language toggle EN / ಕನ್ನಡ; default from Settings.
 - Audio mode where supported (Android 13+), else mic mode (text only).
 - Slug: lower-case → transliterate Kannada to Latin (ICU `Transliterator` "Kannada-Latin; Latin-ASCII") → non-alphanumerics to `-` → max 60 chars.
@@ -59,7 +72,8 @@ Family Documents/              ← owner's root, helpers = Editor
   <Folder 2>/ ...
 ```
 
-- Folder list = sub-folders of root, refreshed on each app open; created only by owner (in app → also on Drive).
+- **Connect:** first launch = Google sign-in + paste root folder link → parse folder id (`/folders/<id>`) → check write access → save in settings.
+- **Folder list** = `files.list` of sub-folders under that id; refreshed on **Refresh** tap and on app open when online; cached for offline use. Owner creates folders in Drive, not in the app.
 - File name carries person code + per-person serial → two phones never write the same name.
 - Before upload: compute sha256, skip if already uploaded. Mark **On Drive** only after Drive returns a file id.
 - CSV columns: `file_name, transcript, language, person, pages, scanned_at, folder, drive_link`. Rewritten (not appended remotely) from local DB after each upload batch.
@@ -72,7 +86,7 @@ Family Documents/              ← owner's root, helpers = Editor
 | **B.** `drive.file` scope | No warning | May not see folders created by another account — must test |
 | **C.** Share sheet to Drive app | No setup | Manual, one file at a time |
 
-**Plan:** Day-1 spike on 2 phones with 2 Gmail accounts: try B, fall back to A. Record token expiry behaviour.
+**Decided: A.** Pasting a folder link needs full `drive` scope — `drive.file` cannot open a folder the app didn't create. Cost: one-time "unverified app" warning at sign-in per helper. Day-1 spike confirms no forced weekly re-login.
 
 ## 7. Permissions
 
@@ -83,7 +97,8 @@ Camera (ML Kit), Microphone, Internet, Post notifications (upload progress). No 
 | Area | Requirement |
 |---|---|
 | Offline | Scan, name, save fully offline; uploads wait |
-| Storage | ~300–500 KB per 1-page PDF → 2,500 docs ≈ 1 GB; fits free Drive |
+| Storage | HD ≈ 2–4 MB per page → ~3,500 pages ≈ 8–12 GB. Free Drive (15 GB) is shared with Gmail/Photos → likely Google One 100 GB |
+| No loss | Every page on disk within 5 pages; no doc can leave the naming screen unnamed |
 | Reliability | PDF file + DB row written before the next document opens |
 | Privacy | All processing on-device; Drive shared only with named family accounts |
 | Performance | Test on the oldest ₹15–20k phone; Done → mic open in < 2 sec |

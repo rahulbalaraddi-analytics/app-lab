@@ -8,7 +8,7 @@
 | Status | PRD + TRD + design ready for review; build not started |
 | Updated | 24 Oct 2026 |
 
-**TL;DR:** New Document → pages → Done → speak name → one PDF in a folder → uploads to one shared Drive. Zero typing, ~30 sec per document, 4–5 phones, ₹0.
+**TL;DR:** Paste Drive folder link once → pick folder → Single page (photo → name → next) or Multi-page (pages → Done → name) → one HD PDF → uploads to the shared Drive. Saved every 5 pages, no unnamed docs, ~30 sec per page-1 doc.
 
 ## 1. Problem
 
@@ -24,7 +24,7 @@
 | Total effort, 2,500 docs | ~21 person-hours (~4 hrs each for 5 people) |
 | Upload success | 100% — no silent failures, retries until done |
 | Typing needed | Zero (voice only) |
-| Cost | ₹0 (free APIs, free Drive 15 GB) |
+| Cost | ₹0 app; Drive storage may need Google One 100 GB (HD ≈ 8–12 GB total) |
 | Claude-ready | Every Drive folder has index CSVs |
 
 ## 3. Users
@@ -37,27 +37,27 @@
 
 ## 4. Core flow
 
-1. Open app → pick folder (e.g. **Land Properties**).
-2. Tap **New Document**.
-3. Take photos one by one — counter shows **Page 1, 2, 3…**; each page auto-crops; retake, delete or reorder.
-4. Tap **Done** → all pages become **one PDF** (1 page or 15, same flow).
-5. Mic **starts automatically** → speak name + any note → stops after 2 sec silence.
-6. Text + file name shown for 3 sec with **Save / Re-record / Edit** → auto-saves if untouched.
-7. PDF joins the **upload queue** → uploads by itself when online (Wi-Fi-only optional).
-8. Back to **New Document** for the next one.
+1. **First launch (once):** sign in with Google → paste the shared Drive folder link → app loads every sub-folder.
+2. Pick folder. **Refresh** pulls new/renamed folders from Drive (needs internet).
+3. Choose **Single page** or **Multi-page**.
+4. **Single page:** photo → check edges → speak name → saved → camera reopens for the next paper.
+5. **Multi-page:** scan pages; thumbnails line up in a **strip at the bottom**; **swipe a page up to delete** (like WhatsApp); tap to re-crop. Pages **saved to the phone every 5 pages**.
+6. **Done – N pages** → one PDF.
+7. **Name is compulsory:** mic opens; Next is locked until a name is saved. Speech fails → re-record or type. No skip.
+8. PDF joins the **upload queue** → uploads when online (Wi-Fi-only optional).
 
 ### Single page vs multi-page
 
 | Case | User does | Result |
 |---|---|---|
-| 1-page document | New Document → 1 photo → Done → speak | 1-page PDF |
-| Multi-page document | New Document → photos to last page → Done → speak | 1 multi-page PDF |
-| Forgot a page | Open saved doc → **Add page** (before upload) | Same PDF, page added |
-| Two docs merged by mistake | Open doc → **Split at page X** (v2) | Two PDFs |
-| Stack of 1-page docs | **Single-page mode**: auto-Done after 1 photo | ~2,000 fewer taps |
+| 1-page documents (most) | Pick **Single page** once → photo → name → next | One PDF each, no Done tap |
+| Multi-page document | Pick **Multi-page** → scan → Done → name | One multi-page PDF |
+| Bad page in the middle | Swipe it up in the strip | Removed before the PDF is made |
+| Crash / call at page 23 | Reopen → **Unfinished document: 20 pages — Continue** | At most 4 pages to rescan |
+| Speech fails | Re-record or type; Next locked until named | No unnamed document ever |
 
-- **Done is the only thing that ends a document** — nothing is named or uploaded before it.
-- Done button shows the count (**"Done – 3 pages"**) so a missed or extra page is obvious.
+- **No document is ever lost or left unnamed.**
+- Unfinished documents are **not** uploaded to Drive — only finished, named PDFs go up (a half deed on Drive would confuse Claude).
 
 ## 5. Features
 
@@ -65,7 +65,11 @@
 |---|---|---|
 | Edge-detect scan, auto-crop, filters, multi-page | ✓ | |
 | PDF output (JPEG option) | ✓ | |
-| Single-page mode toggle | ✓ | |
+| Single page / Multi-page choice per folder visit | ✓ | |
+| Bottom page strip, swipe up to delete, tap to re-crop | ✓ | |
+| Save every 5 pages + recover unfinished document | ✓ | |
+| Name lock (no skip) | ✓ | |
+| Connect by Drive folder link + Refresh | ✓ | |
 | Voice naming → auto file name (English, Kannada) | ✓ | |
 | Audio clip kept on phone only, 30 days | ✓ | |
 | Folders created by owner, same on all phones | ✓ | |
@@ -90,8 +94,16 @@
 ## 7. Folder rules
 
 - One shared root on Drive: **Family Documents**, owned by the owner's Google account; helpers get **Editor** access.
-- Folders are **created by the owner at the start**, before scanning. Each app folder = one Drive sub-folder.
-- Only the owner adds/renames folders (avoids "Land", "Lands", "Land docs").
+- Owner creates sub-folders **directly in Drive** at the start.
+- Every phone connects by **pasting the root folder link**; the app shows all sub-folders; **Refresh** updates them. Same link = same folders on every phone.
+- No folder creation inside the app — Drive is the single source of truth.
+
+## 7a. Quality (lifetime archive)
+
+- Best possible photo quality; **no quality loss** from photo to PDF (JPEG embedded as-is).
+- Default colour = **Original** (auto-enhance can wash out stamps and ink signatures).
+- Edges: blue outline on live camera, auto-capture when steady, 4 draggable corners, page straightened.
+- Target ≥ 300 DPI at A4 (≈ 8–9 MP per page). Verified in the Day-1 spike.
 
 ## 8. Decisions (24 Oct 2026)
 
