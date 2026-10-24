@@ -1,6 +1,6 @@
 # DocSnap
 
-Scan family papers **fast**: New Document → take pages → **Done** → **say the name** → one PDF, uploaded to a shared Google Drive folder. Built to digitise ~2,000–2,500 documents with 4–5 people on different phones, then hand the Drive folder to Claude to clean names and build a register.
+Scan family papers **fast**: pick **Single page** (photo → say the name → next) or **Multi-page** (pages → **Done** → say the name) → one HD PDF, uploaded to a shared Google Drive folder. Built to digitise ~2,000–2,500 documents with 4–5 people on different phones, then hand the Drive folder to Claude to clean names and build a register.
 
 **Status:** 🛠 v0.1 test build — scanning, naming, lossless PDF, quality log, tutorial. Drive link + upload next.
 
@@ -15,8 +15,9 @@ Scan family papers **fast**: New Document → take pages → **Done** → **say 
 | **No loss** | Multi-page saved every 5 pages, crash recovery, **name is compulsory** |
 | **Quality** | HD pages, edge detect + 4-corner crop, Original colour, JPEG embedded in PDF with zero re-compression |
 | **Voice naming** | Mic opens after Done; English or Kannada; text becomes the file name |
-| **Folders** | Owner creates them at the start; same folders on every phone (read from Drive) |
-| **Upload** | Queue uploads by itself when online, Wi-Fi-only option, retries, no clashes between phones |
+| **Folders** | Created only in Drive; the app keeps a local copy and saves every PDF on the phone first |
+| **Upload** | Manual **Upload all** on Wi-Fi (default) or auto on Wi-Fi; background, never freezes the app; retries; no clashes |
+| **Analytics** | Phone model, camera MP, per-page MP/DPI/quality, time per doc, failures, feedback → Drive `_DocSnap_Analytics` |
 | **Self-serve help** | First-launch tutorial with YES/NO photo pictures; **?** button on every screen |
 | **Notifications** | "5 of 5 uploaded", failures, waiting items, unfinished document, low storage |
 | **Claude handoff** | Each Drive folder gets one index CSV per person: file name, full transcript, pages, who, when |
