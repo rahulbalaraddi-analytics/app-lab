@@ -147,3 +147,19 @@ Written locally, then uploaded with the next upload batch to `Family Documents/_
 | Pictures | Drawn in code with Compose `Canvas` (`SceneArt`): works offline, no image assets, crisp on any screen |
 | ? help | `HelpButton` in each screen header → `HelpSheet(topic)` (`ModalBottomSheet`) |
 | Notifications | `Notifier.kt` — channels Uploads + Reminders; POST_NOTIFICATIONS asked after the tutorial (Android 13+). Upload notifications fire from the upload worker (Drive build) |
+
+## 14. v0.2 Drive implementation
+
+| Part | File | How |
+|---|---|---|
+| Sign-in | `drive/DriveAuth.kt` | Play services `AuthorizationClient`, scope `drive`. No client id/secret in the app; Google matches package `com.applab.docsnap` + signing SHA-1 registered in the Cloud project |
+| Drive REST | `drive/DriveApi.kt` | Plain HTTPS: folder check (`canAddChildren`), list sub-folders, resumable upload, sha256 in `appProperties` for de-dupe, upsert CSV/JSON |
+| Upload | `drive/UploadWorker.kt` | WorkManager, unique work; Wi-Fi only unless "Allow mobile data"; loops until nothing is waiting; per-folder `_index_<initials>.csv`; logs to `_DocSnap_Analytics`; progress + done/failed notifications |
+| Folder codes | `Store.nameAndCode` | "Land Properties (LAND)" → name + code from brackets; otherwise first word, max 4 letters, de-duplicated |
+| Connect | `ui/DriveScreens.kt` | Mandatory after the tutorial: sign in → paste link → initials + language → verify Editor access → load folders |
+
+### Google Cloud setup (one time)
+
+1. Project created; **Google Drive API** enabled.
+2. Google Auth Platform: app name DocSnap, audience External, publish (unverified apps are capped at 100 users and show a warning once).
+3. Credentials → OAuth client → **Android**: package `com.applab.docsnap`, SHA-1 `29:A6:43:50:E6:47:8F:02:7E:11:EE:A3:1D:8F:40:49:C1:5B:DE:94` (shared debug key in `app/debug.keystore`).

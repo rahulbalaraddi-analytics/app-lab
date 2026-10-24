@@ -33,6 +33,8 @@ Please:
 1. Propose 5–10 top-level folders that cover these papers without overlap. For each give:
    a clear folder name, a 3–5 letter UPPERCASE code (used in file names, e.g. LAND),
    and one line on what goes in it. Keep names short and obvious for elderly users.
+   Name each Drive folder as "<Name> (<CODE>)", e.g. "Land Properties (LAND)" — the app
+   reads the code from the brackets and shows only the name.
 2. After I approve, create in my Google Drive:
    - a root folder named "[Family Documents]"
    - each approved folder inside it
@@ -56,4 +58,3 @@ Don't create sub-sub-folders; one level only.
 
 Ask Claude to read the root folder: it reads each folder's `_index_<initials>.csv` (file name + what was said) and `_DocSnap_Analytics` (phone quality, problems), then fixes names, flags low-quality scans and builds a register.
 
-> Folder link + Drive upload arrive in the next app build; the current test build saves on the phone.

@@ -2,7 +2,9 @@
 
 Scan family papers **fast**: pick **Single page** (photo → say the name → next) or **Multi-page** (pages → **Done** → say the name) → one HD PDF, uploaded to a shared Google Drive folder. Built to digitise ~2,000–2,500 documents with 4–5 people on different phones, then hand the Drive folder to Claude to clean names and build a register.
 
-**Status:** 🛠 v0.1 test build — scanning, naming, lossless PDF, quality log, tutorial. Drive link + upload next.
+**Status:** 🛠 v0.2 — scanning, naming, lossless PDF, quality log, tutorial, **Drive folder link, Refresh, Upload all, notifications**.
+
+**Download:** [DocSnap.apk](https://github.com/rahulbalaraddi-analytics/app-lab/releases/download/docsnap-latest/DocSnap.apk) (always the latest build)
 
 **Set up your Drive with Claude:** [SETUP-PROMPT.md](SETUP-PROMPT.md)
 
