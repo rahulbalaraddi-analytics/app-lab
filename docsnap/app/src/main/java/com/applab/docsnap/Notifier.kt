@@ -30,6 +30,7 @@ class Notifier(private val context: Context) {
             val mgr = context.getSystemService(NotificationManager::class.java)
             mgr.createNotificationChannel(NotificationChannel(CH_UPLOAD, "Uploads", NotificationManager.IMPORTANCE_DEFAULT))
             mgr.createNotificationChannel(NotificationChannel(CH_REMIND, "Reminders", NotificationManager.IMPORTANCE_DEFAULT))
+            mgr.createNotificationChannel(NotificationChannel(CH_PROGRESS, "Upload progress", NotificationManager.IMPORTANCE_LOW))
         }
     }
 
@@ -46,13 +47,33 @@ class Notifier(private val context: Context) {
     fun unfinished(pages: Int) =
         post(ID_UNFINISHED, CH_REMIND, "Unfinished document", "$pages pages saved but not named yet")
 
+    fun needsSignIn() =
+        post(ID_UPLOAD_FAIL, CH_UPLOAD, "Uploads paused", "Open DocSnap and sign in to Google again")
+
+    /** Ongoing "Uploading 3 of 8" while the worker runs. */
+    fun uploadProgress(done: Int, total: Int) {
+        if (!allowed()) return
+        val n = NotificationCompat.Builder(context, CH_PROGRESS)
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setContentTitle("Uploading $done of $total")
+            .setContentText("You can keep scanning")
+            .setProgress(total, done, false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        runCatching { nm.notify(ID_PROGRESS, n) }
+    }
+
+    fun clearProgress() = nm.cancel(ID_PROGRESS)
+
     fun lowStorage(freeGb: Double) =
         post(ID_STORAGE, CH_REMIND, "Phone storage almost full", "%.1f GB left — upload and free space".format(freeGb))
 
+    private fun allowed() = Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
     private fun post(id: Int, channel: String, title: String, text: String) {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) return
+        if (!allowed()) return
         val open = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE,
@@ -70,10 +91,12 @@ class Notifier(private val context: Context) {
     companion object {
         private const val CH_UPLOAD = "uploads"
         private const val CH_REMIND = "reminders"
+        private const val CH_PROGRESS = "progress"
         private const val ID_UPLOAD = 1
         private const val ID_UPLOAD_FAIL = 2
         private const val ID_WAITING = 3
         private const val ID_UNFINISHED = 4
         private const val ID_STORAGE = 5
+        private const val ID_PROGRESS = 6
     }
 }

@@ -17,7 +17,21 @@ import java.util.UUID
 
 enum class Mode { SINGLE, MULTI }
 
-data class Folder(val name: String, val code: String)
+/** A Drive sub-folder of the connected root. [code] goes into file names (e.g. LAND). */
+data class Folder(val id: String, val name: String, val code: String)
+
+/** A finished PDF that is not on Drive yet. */
+data class PendingUpload(
+    val meta: File,
+    val pdf: File,
+    val fileName: String,
+    val folderId: String,
+    val folderName: String,
+    val sha256: String,
+    val attempts: Int,
+)
+
+enum class UploadStatus { LOCAL, ON_DRIVE, FAILED }
 
 data class Draft(
     val id: String,
@@ -37,6 +51,8 @@ data class Doc(
     val quality: Quality,
     val createdAt: Long,
     val pdf: File,
+    val status: UploadStatus = UploadStatus.LOCAL,
+    val lastError: String? = null,
 )
 
 /**
@@ -71,16 +87,60 @@ class Store(private val context: Context) {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull() ?: "?"
 
-    // ---------- folders ----------
-    /** Test build: Drive connect comes next. Until then, one local test folder. */
-    fun folders(): List<Folder> = listOf(Folder("Test", "TEST"))
+    var allowMobileData: Boolean
+        get() = prefs.getBoolean("allowMobileData", false)
+        set(v) = prefs.edit().putBoolean("allowMobileData", v).apply()
+
+    /** true = upload by itself on Wi-Fi after each save; false = only when "Upload all" is tapped. */
+    var autoUpload: Boolean
+        get() = prefs.getBoolean("autoUpload", false)
+        set(v) = prefs.edit().putBoolean("autoUpload", v).apply()
+
+    var lastUploadAt: Long
+        get() = prefs.getLong("lastUploadAt", 0L)
+        set(v) = prefs.edit().putLong("lastUploadAt", v).apply()
+
+    // ---------- Drive connection + folders ----------
+    val rootFolderId: String? get() = prefs.getString("rootId", null)
+    val rootFolderName: String get() = prefs.getString("rootName", "").orEmpty()
+    val accountEmail: String get() = prefs.getString("email", "").orEmpty()
+    val isConnected: Boolean get() = rootFolderId != null
+    val foldersRefreshedAt: Long get() = prefs.getLong("foldersAt", 0L)
+
+    fun saveConnection(rootId: String, rootName: String, email: String) {
+        prefs.edit().putString("rootId", rootId).putString("rootName", rootName).putString("email", email).apply()
+        event("connected", "$rootName $email")
+    }
+
+    /** Saves the Drive folder list locally so the app works offline. Hidden folders (start with _) are skipped. */
+    fun saveFolders(list: List<Pair<String, String>>) {
+        val visible = list.filter { !it.second.startsWith("_") && !it.second.startsWith(".") }
+        val used = mutableSetOf<String>()
+        val arr = JSONArray()
+        for ((id, rawName) in visible) {
+            val (name, code) = nameAndCode(rawName, used)
+            used += code
+            arr.put(JSONObject().put("id", id).put("name", name).put("code", code))
+        }
+        prefs.edit().putString("folders", arr.toString()).putLong("foldersAt", System.currentTimeMillis()).apply()
+        event("refresh", "${arr.length()} folders")
+    }
+
+    fun folders(): List<Folder> {
+        val arr = JSONArray(prefs.getString("folders", "[]"))
+        return (0 until arr.length()).map { i ->
+            arr.getJSONObject(i).let { Folder(it.getString("id"), it.getString("name"), it.getString("code")) }
+        }
+    }
+
+    fun folder(id: String): Folder? = folders().firstOrNull { it.id == id }
 
     // ---------- drafts ----------
     fun newDraft(folder: Folder, mode: Mode): Draft {
         val id = UUID.randomUUID().toString().take(8)
         val dir = File(draftsDir, id).apply { mkdirs() }
         JSONObject().apply {
-            put("folder", folder.name); put("code", folder.code)
+            put("folderId", folder.id); put("folder", folder.name); put("code", folder.code)
             put("mode", mode.name); put("startedAt", System.currentTimeMillis())
             put("deleted", 0)
         }.let { File(dir, "draft.json").writeText(it.toString()) }
@@ -95,7 +155,7 @@ class Store(private val context: Context) {
             ?.sortedBy { it.name }.orEmpty()
         return Draft(
             id = id,
-            folder = Folder(j.getString("folder"), j.getString("code")),
+            folder = Folder(j.optString("folderId", j.getString("folder")), j.getString("folder"), j.getString("code")),
             mode = Mode.valueOf(j.getString("mode")),
             startedAt = j.getLong("startedAt"),
             pages = pages,
@@ -175,7 +235,7 @@ class Store(private val context: Context) {
     /** Builds the PDF, writes details + analytics, then removes the draft. Throws if anything fails. */
     fun finish(draft: Draft, spoken: String, nameSource: String): Doc {
         require(spoken.isNotBlank()) { "Name is required" }
-        val folderDir = File(docsDir, draft.folder.name).apply { mkdirs() }
+        val folderDir = File(docsDir, draft.folder.id).apply { mkdirs() }
         val fileName = previewFileName(draft, spoken)
         val pdf = File(folderDir, fileName)
         PdfMaker.make(draft.pages, pdf)
@@ -184,9 +244,11 @@ class Store(private val context: Context) {
         val seconds = ((System.currentTimeMillis() - draft.startedAt) / 1000).toInt()
         val worst = metrics.minByOrNull { it.megapixels }!!
         val createdAt = System.currentTimeMillis()
+        val sha = sha256(pdf)
 
         JSONObject().apply {
-            put("file_name", fileName); put("folder", draft.folder.name)
+            put("file_name", fileName); put("folder", draft.folder.name); put("folder_id", draft.folder.id)
+            put("sha256", sha); put("attempts", 0)
             put("transcript", spoken.trim()); put("language", language)
             put("name_source", nameSource); put("mode", draft.mode.name)
             put("pages", metrics.size); put("seconds", seconds)
@@ -201,11 +263,12 @@ class Store(private val context: Context) {
 
         logDoc(draft, fileName, spoken, nameSource, metrics, seconds, pdf.length())
         File(draftsDir, draft.id).deleteRecursively()
+        if (autoUpload) com.applab.docsnap.drive.UploadWorker.enqueue(context, allowMobileData)
         return Doc(fileName, draft.folder.name, spoken, metrics.size, worst.megapixels, worst.quality, createdAt, pdf)
     }
 
     fun docs(folder: Folder): List<Doc> {
-        val dir = File(docsDir, folder.name)
+        val dir = File(docsDir, folder.id)
         return dir.listFiles { f -> f.name.endsWith(".json") }?.mapNotNull { meta ->
             runCatching {
                 val j = JSONObject(meta.readText())
@@ -225,6 +288,8 @@ class Store(private val context: Context) {
                     },
                     createdAt = j.getLong("created_at"),
                     pdf = File(dir, j.getString("file_name")),
+                    status = runCatching { UploadStatus.valueOf(j.optString("status", "LOCAL")) }.getOrDefault(UploadStatus.LOCAL),
+                    lastError = j.optString("last_error").ifBlank { null },
                 )
             }.getOrNull()
         }?.sortedByDescending { it.createdAt }.orEmpty()
@@ -239,14 +304,76 @@ class Store(private val context: Context) {
 
     private fun nextSerial(folder: Folder): Int {
         val prefix = "${folder.code}_${initials.ifBlank { "XX" }}_"
-        val max = File(docsDir, folder.name).listFiles()
+        val max = File(docsDir, folder.id).listFiles()
             ?.filter { it.name.startsWith(prefix) && it.name.endsWith(".pdf") }
             ?.mapNotNull { it.name.removePrefix(prefix).take(4).toIntOrNull() }
             ?.maxOrNull() ?: 0
         return max + 1
     }
 
-    // ---------- analytics (uploaded to Drive _DocSnap_Analytics in the Drive build) ----------
+    // ---------- uploads ----------
+    private fun allMetas(): List<File> = docsDir.listFiles()?.flatMap { d ->
+        d.listFiles { f -> f.name.endsWith(".json") }?.toList().orEmpty()
+    }.orEmpty()
+
+    fun pendingUploads(): List<PendingUpload> = allMetas().mapNotNull { meta ->
+        runCatching {
+            val j = JSONObject(meta.readText())
+            if (j.optString("status") == UploadStatus.ON_DRIVE.name) return@runCatching null
+            val folderId = j.optString("folder_id")
+            if (folderId.isBlank() || folder(folderId) == null) return@runCatching null // old test docs / removed folders
+            val pdf = File(meta.parentFile, j.getString("file_name"))
+            if (!pdf.exists()) return@runCatching null
+            PendingUpload(
+                meta = meta, pdf = pdf, fileName = j.getString("file_name"),
+                folderId = folderId, folderName = j.getString("folder"),
+                sha256 = j.optString("sha256").ifBlank { sha256(pdf).also { j.put("sha256", it); meta.writeText(j.toString(2)) } },
+                attempts = j.optInt("attempts", 0),
+            )
+        }.getOrNull()
+    }.sortedBy { it.meta.lastModified() }
+
+    fun waitingCount(): Int = pendingUploads().size
+
+    fun markUploaded(p: PendingUpload, driveId: String, duplicate: Boolean) {
+        val j = JSONObject(p.meta.readText())
+        j.put("status", UploadStatus.ON_DRIVE.name).put("drive_file_id", driveId)
+            .put("uploaded_at", System.currentTimeMillis()).put("attempts", j.optInt("attempts", 0) + 1)
+            .remove("last_error")
+        p.meta.writeText(j.toString(2))
+        append("uploads_${who()}.csv", "time,file_name,folder,result,drive_file_id",
+            listOf(now(), p.fileName, csv(p.folderName), if (duplicate) "ALREADY_ON_DRIVE" else "UPLOADED", driveId).joinToString(","))
+    }
+
+    fun markFailed(p: PendingUpload, error: String) {
+        val j = JSONObject(p.meta.readText())
+        j.put("status", UploadStatus.FAILED.name).put("last_error", error.take(200))
+            .put("attempts", j.optInt("attempts", 0) + 1)
+        p.meta.writeText(j.toString(2))
+        event("upload_failed", "${p.fileName} $error")
+    }
+
+    /** _index_<initials>.csv for one Drive folder: every document this phone saved there. */
+    fun indexCsv(folderId: String): String {
+        val sb = StringBuilder("file_name,transcript,language,person,pages,scanned_at,folder,name_source,min_mp,drive_link\n")
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT)
+        File(docsDir, folderId).listFiles { f -> f.name.endsWith(".json") }?.sortedBy { it.name }?.forEach { meta ->
+            runCatching {
+                val j = JSONObject(meta.readText())
+                val pm = j.getJSONArray("page_metrics")
+                val minMp = (0 until pm.length()).minOfOrNull { pm.getJSONObject(it).getString("mp").toDouble() } ?: 0.0
+                val link = j.optString("drive_file_id").ifBlank { null }?.let { "https://drive.google.com/file/d/$it/view" }.orEmpty()
+                sb.append(listOf(
+                    j.getString("file_name"), csv(j.getString("transcript")), j.optString("language"),
+                    j.optString("person"), j.getInt("pages").toString(), fmt.format(Date(j.getLong("created_at"))),
+                    csv(j.getString("folder")), j.optString("name_source"), "%.1f".format(minMp), link,
+                ).joinToString(",")).append("\n")
+            }
+        }
+        return sb.toString()
+    }
+
+    // ---------- analytics (uploaded to Drive _DocSnap_Analytics) ----------
     private fun who() = initials.ifBlank { "XX" }
     private fun now() = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).format(Date())
     private fun csv(s: String) = "\"" + s.replace("\"", "\"\"") + "\""
@@ -291,19 +418,40 @@ class Store(private val context: Context) {
 
     /** Average and minimum megapixels of every page scanned on this phone so far. */
     fun pageStats(): Pair<Double, Double>? {
-        val all = docsDir.listFiles()?.flatMap { d ->
-            d.listFiles { f -> f.name.endsWith(".json") }?.toList().orEmpty()
-        }?.flatMap { meta ->
+        val all = allMetas().flatMap { meta ->
             runCatching {
                 val pm = JSONObject(meta.readText()).getJSONArray("page_metrics")
                 (0 until pm.length()).map { pm.getJSONObject(it).getString("mp").toDouble() }
             }.getOrDefault(emptyList())
-        }.orEmpty()
+        }
         if (all.isEmpty()) return null
         return all.average() to all.min()
     }
 
     companion object {
+        /** "Land Properties (LAND)" -> ("Land Properties", "LAND"); "Land Properties" -> ("Land Properties", "LAND"). */
+        fun nameAndCode(raw: String, used: Set<String>): Pair<String, String> {
+            val m = Regex("^(.*?)\\s*[\\(\\[]\\s*([A-Za-z0-9]{2,6})\\s*[\\)\\]]\\s*$").find(raw.trim())
+            val name = m?.groupValues?.get(1)?.trim()?.ifBlank { null } ?: raw.trim()
+            var base = m?.groupValues?.get(2)?.uppercase(Locale.ROOT)
+                ?: slug(name).split('-').firstOrNull { it.any(Char::isLetter) }?.uppercase(Locale.ROOT)?.filter { it.isLetterOrDigit() }?.take(4)
+                ?: "DOC"
+            if (base.length < 2) base = (base + "X").take(2)
+            var code = base
+            var n = 2
+            while (code in used) code = base.take(3) + n++
+            return name to code
+        }
+
+        fun sha256(file: File): String {
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            file.inputStream().use { input ->
+                val buf = ByteArray(256 * 1024)
+                while (true) { val r = input.read(buf); if (r <= 0) break; md.update(buf, 0, r) }
+            }
+            return md.digest().joinToString("") { "%02x".format(it) }
+        }
+
         /** "survey 123 Bijapur 7/12 extract" -> "survey-123-bijapur-7-12-extract" (Kannada -> Latin letters). */
         fun slug(text: String): String {
             var s = text.trim()

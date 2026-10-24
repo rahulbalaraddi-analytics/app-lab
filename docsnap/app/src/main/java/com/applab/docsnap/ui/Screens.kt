@@ -37,6 +37,12 @@ import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import com.applab.docsnap.data.UploadStatus
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -219,55 +225,126 @@ fun RecoveryDialog(draft: Draft, onContinue: () -> Unit, onDiscard: () -> Unit) 
 
 // ---------------------------------------------------------------- home
 
+/** What the upload worker is doing, for the Home card. */
+data class UploadState(val running: Boolean, val waitingForNetwork: Boolean, val done: Int, val total: Int)
+
 @Composable
-fun HomeScreen(store: Store, tick: Int, onFolder: (Folder) -> Unit, onPhone: () -> Unit, onFeedback: () -> Unit, onHelp: () -> Unit) {
+fun HomeScreen(
+    store: Store, tick: Int, upload: UploadState, refreshing: Boolean,
+    onFolder: (Folder) -> Unit, onRefresh: () -> Unit, onUploadAll: () -> Unit,
+    onSettings: () -> Unit, onFeedback: () -> Unit, onHelp: () -> Unit,
+) {
     val today = remember(tick) { store.docsToday() }
+    val waiting = remember(tick, upload) { store.waitingCount() }
+    val folders = remember(tick) { store.folders() }
     Page {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("DocSnap", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("Test build ${store.appVersion} · ${store.initials}", fontSize = 14.sp, color = Palette.Quiet)
+                    Text("${store.rootFolderName} · ${store.initials}", fontSize = 14.sp, color = Palette.Quiet,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 HelpButton(onHelp)
-            }
-            Spacer(Modifier.height(16.dp))
-            CardBox {
-                Column {
-                    Text("Scanned today", fontSize = 13.sp, color = Palette.Quiet)
-                    Text("$today", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Palette.Teal, modifier = Modifier.size(28.dp))
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Text("FOLDERS", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Quiet)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CardBox(Modifier.weight(1f)) {
+                    Column {
+                        Text("Scanned today", fontSize = 13.sp, color = Palette.Quiet)
+                        Text("$today", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                CardBox(Modifier.weight(1f)) {
+                    Column {
+                        Text("Waiting to upload", fontSize = 13.sp, color = Palette.Quiet)
+                        Text("$waiting", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = if (waiting > 0) Palette.Amber else Palette.Teal)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            UploadCard(store, waiting, upload, onUploadAll)
+
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("FOLDERS FROM DRIVE", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Quiet, modifier = Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = onRefresh, enabled = !refreshing, border = BorderStroke(1.5.dp, Palette.Teal),
+                    shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(horizontal = 14.dp),
+                ) {
+                    if (refreshing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Filled.Refresh, null, tint = Palette.Teal, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Refresh", color = Palette.Teal, fontWeight = FontWeight.Bold)
+                }
+            }
             Spacer(Modifier.height(8.dp))
-            store.folders().forEach { f ->
-                CardBox(onClick = { onFolder(f) }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(48.dp).background(Palette.TealSoft, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(f.code, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.Teal) }
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(f.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text("${remember(tick) { store.docs(f).size }} docs", fontSize = 14.sp, color = Palette.Quiet)
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(folders, key = { it.id }) { f ->
+                    val count = remember(tick, f) { store.docs(f).size }
+                    CardBox(onClick = { onFolder(f) }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(52.dp).background(Palette.TealSoft, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) { Text(f.code, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Palette.Teal) }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(f.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text("$count on this phone", fontSize = 14.sp, color = Palette.Quiet)
+                            }
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                item {
+                    val ago = if (store.foldersRefreshedAt == 0L) "never" else
+                        android.text.format.DateUtils.getRelativeTimeSpanString(store.foldersRefreshedAt).toString()
+                    Text(
+                        if (folders.isEmpty()) "No folders yet. The owner creates folders inside the shared Drive folder, then tap Refresh."
+                        else "Added a folder in Drive? Tap Refresh. Last refreshed $ago.",
+                        fontSize = 14.sp, color = Palette.Quiet, modifier = Modifier.padding(vertical = 6.dp),
+                    )
+                }
             }
-            Text(
-                "This test build keeps everything on the phone. Drive folder link, Refresh and upload come in the next build.",
-                fontSize = 14.sp, color = Palette.Quiet,
-            )
-            Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SmallAction("Phone check", Icons.Filled.PhoneAndroid, Modifier.weight(1f), onPhone)
-                SmallAction("Report a problem", Icons.Filled.Feedback, Modifier.weight(1f), onFeedback)
+            SmallAction("Report a problem", Icons.Filled.Feedback, Modifier.fillMaxWidth(), onFeedback)
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun UploadCard(store: Store, waiting: Int, upload: UploadState, onUploadAll: () -> Unit) {
+    val status = when {
+        upload.running -> "Uploading ${upload.done} of ${upload.total}… you can keep scanning"
+        upload.waitingForNetwork -> if (store.allowMobileData) "Waiting for internet" else "Waiting for Wi-Fi — uploads start when connected"
+        waiting == 0 && store.lastUploadAt > 0 -> "All uploaded · " +
+            android.text.format.DateUtils.getRelativeTimeSpanString(store.lastUploadAt)
+        waiting == 0 -> "Nothing to upload yet"
+        store.autoUpload -> "Will upload by itself on Wi-Fi"
+        else -> "Tap Upload all when on Wi-Fi"
+    }
+    CardBox {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(status, fontSize = 15.sp, color = if (upload.running) Palette.Teal else Palette.Quiet, fontWeight = FontWeight.Bold)
+            if (upload.running && upload.total > 0) {
+                LinearProgressIndicator(
+                    progress = { upload.done.toFloat() / upload.total }, color = Palette.Teal,
+                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                )
             }
-            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onUploadAll, enabled = waiting > 0 && !upload.running,
+                modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Palette.Teal),
+            ) {
+                Icon(Icons.Filled.CloudUpload, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Upload all ($waiting)", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -344,7 +421,13 @@ private fun DocRow(d: Doc, onClick: () -> Unit) {
             Text(d.transcript, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(d.fileName, fontSize = 12.sp, color = Palette.Quiet, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${d.pages} page${if (d.pages == 1) "" else "s"} · on phone", fontSize = 13.sp, color = Palette.Quiet)
+                val (label, color) = when (d.status) {
+                    UploadStatus.ON_DRIVE -> "On Drive" to Palette.Teal
+                    UploadStatus.FAILED -> "Retry" to Palette.Red
+                    UploadStatus.LOCAL -> "Waiting" to Palette.Amber
+                }
+                Text("${d.pages} page${if (d.pages == 1) "" else "s"} · ", fontSize = 13.sp, color = Palette.Quiet)
+                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color)
                 Spacer(Modifier.weight(1f))
                 QualityChip(d.quality, d.minMp)
             }
