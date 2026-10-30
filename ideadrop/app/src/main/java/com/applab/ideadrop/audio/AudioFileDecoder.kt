@@ -4,14 +4,15 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import java.io.File
+import android.content.Context
+import android.net.Uri
 import java.nio.ByteOrder
 
 /**
  * Decodes any audio file the phone can play (m4a/AAC, mp3, amr, ogg/opus, wav…) into
  * 16 kHz mono 16-bit PCM — the format the speech engine expects.
  */
-class AudioFileDecoder(private val file: File) {
+class AudioFileDecoder(context: Context, uri: Uri) {
 
     /** Length of the audio in ms, or 0 if unknown. */
     val durationMs: Long
@@ -21,7 +22,7 @@ class AudioFileDecoder(private val file: File) {
     private val format: MediaFormat
 
     init {
-        extractor.setDataSource(file.absolutePath)
+        extractor.setDataSource(context, uri, null)
         trackIndex = (0 until extractor.trackCount).firstOrNull {
             extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
         } ?: run { extractor.release(); throw IllegalArgumentException("No audio found in this file") }

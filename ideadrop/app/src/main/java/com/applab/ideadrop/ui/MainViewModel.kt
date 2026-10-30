@@ -11,6 +11,8 @@ import com.applab.ideadrop.IdeaDropApp
 import com.applab.ideadrop.audio.AudioPlayer
 import com.applab.ideadrop.audio.ImportController
 import com.applab.ideadrop.data.AppSettings
+import com.applab.ideadrop.data.CallFolder
+import com.applab.ideadrop.data.CallRecordingFile
 import com.applab.ideadrop.data.Note
 import com.applab.ideadrop.data.NoteRepository
 import com.applab.ideadrop.data.NoteWithRecordings
@@ -40,13 +42,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val categories: StateFlow<List<String>> =
         repo.categories.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settings: StateFlow<AppSettings> = app.settings.state
-    val player = AudioPlayer()
+    val player = AudioPlayer(application)
 
     private val _cleanup = MutableStateFlow<CleanupPrompt?>(null)
     val cleanup: StateFlow<CleanupPrompt?> = _cleanup.asStateFlow()
 
     init {
         checkCleanup()
+        // Calls list is loaded by the Calls tab (properties below aren't ready yet here)
     }
 
     fun note(id: Long): Flow<NoteWithRecordings?> = repo.note(id)
@@ -77,6 +80,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissCleanup() { _cleanup.value = null }
+
+    // ---- Call recordings folder ----
+
+    private val _calls = MutableStateFlow<List<CallRecordingFile>>(emptyList())
+    val calls: StateFlow<List<CallRecordingFile>> = _calls.asStateFlow()
+    private val _callsLoading = MutableStateFlow(false)
+    val callsLoading: StateFlow<Boolean> = _callsLoading.asStateFlow()
+
+    fun callsConnected(): Boolean = CallFolder.hasAccess(getApplication(), settings.value.callsFolder)
+
+    fun connectCallsFolder(tree: Uri) {
+        runCatching { CallFolder.remember(getApplication(), tree) }
+        updateSettings { it.copy(callsFolder = tree.toString()) }
+        refreshCalls()
+    }
+
+    fun refreshCalls() = viewModelScope.launch {
+        val tree = settings.value.callsFolder
+        if (!callsConnected()) { _calls.value = emptyList(); return@launch }
+        _callsLoading.value = true
+        _calls.value = withContext(Dispatchers.IO) {
+            runCatching { CallFolder.list(getApplication(), Uri.parse(tree)) }.getOrDefault(emptyList())
+        }
+        _callsLoading.value = false
+    }
+
+    /** Converts a recording from the connected folder. The original file is only read. */
+    fun convertCall(context: Context, call: CallRecordingFile, language: String) =
+        ImportController.startFromFolder(context, call.uri, call.fileName, language)
+
+    // ---- Crash report from the last run ----
+
+    private val _crash = MutableStateFlow(readCrash())
+    val crash: StateFlow<String?> = _crash.asStateFlow()
+
+    private fun readCrash(): String? = runCatching {
+        getApplication<IdeaDropApp>().crashFile.takeIf { it.exists() }?.readText()
+    }.getOrNull()
+
+    fun shareCrash(context: Context) {
+        val text = _crash.value ?: return
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        context.startActivity(Intent.createChooser(send, "Send crash report"))
+    }
+
+    fun dismissCrash() {
+        runCatching { getApplication<IdeaDropApp>().crashFile.delete() }
+        _crash.value = null
+    }
 
     // ---- Import audio (call recordings, voice notes…) ----
 

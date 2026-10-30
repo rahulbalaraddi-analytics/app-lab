@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -43,12 +44,20 @@ object ImportController {
     internal fun set(s: ImportState) { _state.value = s }
     fun clear() { if (_state.value is ImportState.Done) _state.value = ImportState.Idle }
 
-    /** [file] is a private copy inside the app; it becomes the note's audio clip. */
-    fun start(context: Context, file: File, displayName: String, language: String) {
+    /** A file the app copied in (picked or shared). It becomes the note's audio clip. */
+    fun start(context: Context, file: File, displayName: String, language: String) =
+        launch(context, Uri.fromFile(file).toString(), displayName, language, sourceUri = null)
+
+    /** A recording in the connected call-recordings folder. Read in place, never copied or changed. */
+    fun startFromFolder(context: Context, uri: Uri, displayName: String, language: String) =
+        launch(context, uri.toString(), displayName, language, sourceUri = uri.toString())
+
+    private fun launch(context: Context, uri: String, displayName: String, language: String, sourceUri: String?) {
         if (_state.value is ImportState.Working) return
         val intent = Intent(context, ImportService::class.java)
             .setAction(ImportService.ACTION_START)
-            .putExtra(ImportService.EXTRA_PATH, file.absolutePath)
+            .putExtra(ImportService.EXTRA_URI, uri)
+            .putExtra(ImportService.EXTRA_SOURCE, sourceUri)
             .putExtra(ImportService.EXTRA_NAME, displayName)
             .putExtra(ImportService.EXTRA_LANGUAGE, language)
         ContextCompat.startForegroundService(context, intent)
@@ -76,12 +85,32 @@ class ImportService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> if (job == null) {
-                val path = intent.getStringExtra(EXTRA_PATH) ?: return START_NOT_STICKY
+            ACTION_START -> {
                 val name = intent.getStringExtra(EXTRA_NAME) ?: "Audio"
+                // Android requires startForeground() after every startForegroundService(), even
+                // when there's nothing new to do — skipping it closes the app.
+                try {
+                    goForeground(name)
+                } catch (t: Throwable) {
+                    ImportController.set(ImportState.Done(name, null, "Couldn't start: ${t.javaClass.simpleName} ${t.message ?: ""}"))
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                if (job != null) return START_NOT_STICKY // already converting
+                val uri = intent.getStringExtra(EXTRA_URI)?.let(Uri::parse)
+                if (uri == null) { finishService(); return START_NOT_STICKY }
+                val source = intent.getStringExtra(EXTRA_SOURCE)
                 val language = intent.getStringExtra(EXTRA_LANGUAGE) ?: PhoneSpeech.MIXED
-                goForeground(name)
-                job = scope.launch { run(File(path), name, language) }
+                cancelled.set(false)
+                job = scope.launch {
+                    try {
+                        run(uri, source, name, language)
+                    } catch (t: Throwable) {
+                        // Never crash the app: report the problem on the Home screen instead
+                        ImportController.set(ImportState.Done(name, null, "Couldn't convert: ${t.javaClass.simpleName} ${t.message ?: ""}"))
+                        finishService()
+                    }
+                }
             }
             ACTION_CANCEL -> {
                 cancelled.set(true)
@@ -114,12 +143,25 @@ class ImportService : Service() {
         notifications.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Audio import", NotificationManager.IMPORTANCE_LOW)
         )
-        val type = if (Build.VERSION.SDK_INT >= 35) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
-        else ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(name, 0), type)
+        val n = notification(name, 0)
+        // Try the newest service type first, fall back to older ones (some phones reject a type)
+        val types = buildList {
+            if (Build.VERSION.SDK_INT >= 35) add(ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING)
+            add(ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        }
+        var lastError: Throwable? = null
+        for (t in types) {
+            try {
+                ServiceCompat.startForeground(this, NOTIFICATION_ID, n, t); return
+            } catch (e: Throwable) { lastError = e }
+        }
+        throw lastError ?: IllegalStateException("Couldn't start background work")
     }
 
-    private suspend fun run(file: File, name: String, language: String) {
+    private suspend fun run(uri: Uri, sourceUri: String?, name: String, language: String) {
+        // Files the app copied in are deleted on failure; folder recordings are never touched
+        val ownCopy: File? = if (uri.scheme == "file") File(uri.path!!) else null
+        val audioPath = ownCopy?.absolutePath ?: uri.toString()
         val app = application as IdeaDropApp
         ImportController.set(ImportState.Working(name, 0f, ""))
         var progress = 0f
@@ -132,7 +174,7 @@ class ImportService : Service() {
         speech.onAudioSourceFailed = { engineRefused.set(true) }
 
         val result: ImportState.Done = try {
-            val decoder = AudioFileDecoder(file)
+            val decoder = AudioFileDecoder(this, uri)
             val stream = speech.startWithAudioSource()
                 ?: throw UnsupportedOperationException("Needs Android 13 or newer")
             this.stream = stream
@@ -159,11 +201,11 @@ class ImportService : Service() {
             val text = speech.finish(waitMs = 30_000)
             when {
                 cancelled.get() -> {
-                    file.delete()
+                    ownCopy?.delete()
                     ImportState.Done(name, null, "Cancelled")
                 }
                 engineRefused.get() && text.isBlank() -> {
-                    file.delete()
+                    ownCopy?.delete()
                     ImportState.Done(
                         name, null,
                         "Your phone's speech engine can't read audio files. " +
@@ -173,9 +215,10 @@ class ImportService : Service() {
                 else -> {
                     val noteId = app.repository.createFromImport(
                         transcript = text,
-                        audio = file,
+                        audioPath = audioPath,
                         durationMs = decoder.durationMs,
                         sourceName = name,
+                        sourceUri = sourceUri,
                     )
                     ImportState.Done(
                         name, noteId,
@@ -186,7 +229,7 @@ class ImportService : Service() {
             }
         } catch (e: Exception) {
             speech.finish(waitMs = 1_000)
-            file.delete()
+            ownCopy?.delete()
             ImportState.Done(name, null, "Couldn't read this file: ${e.message ?: "unknown error"}")
         }
 
@@ -212,7 +255,8 @@ class ImportService : Service() {
     companion object {
         const val ACTION_START = "com.applab.ideadrop.IMPORT"
         const val ACTION_CANCEL = "com.applab.ideadrop.IMPORT_CANCEL"
-        const val EXTRA_PATH = "path"
+        const val EXTRA_URI = "uri"
+        const val EXTRA_SOURCE = "source"
         const val EXTRA_NAME = "name"
         const val EXTRA_LANGUAGE = "language"
         private const val CHANNEL_ID = "import"

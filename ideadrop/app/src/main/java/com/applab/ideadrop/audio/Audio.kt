@@ -39,8 +39,8 @@ class WavWriter(file: File, private val sampleRate: Int) {
     companion object { const val HEADER_SIZE = 44 }
 }
 
-/** Plays one clip at a time. */
-class AudioPlayer {
+/** Plays one clip at a time: IdeaDrop's own files or call recordings (content:// links). */
+class AudioPlayer(private val context: android.content.Context) {
     private var player: MediaPlayer? = null
     private val _playingPath = MutableStateFlow<String?>(null)
     val playingPath: StateFlow<String?> = _playingPath.asStateFlow()
@@ -48,8 +48,12 @@ class AudioPlayer {
     fun toggle(path: String) {
         if (_playingPath.value == path) { stop(); return }
         stop()
+        runCatching { start(path) }.onFailure { stop() } // e.g. the original recording was deleted
+    }
+
+    private fun start(path: String) {
         player = MediaPlayer().apply {
-            setDataSource(path)
+            if (path.startsWith("content://")) setDataSource(context, android.net.Uri.parse(path)) else setDataSource(path)
             setOnCompletionListener { this@AudioPlayer.stop() }
             prepare()
             start()

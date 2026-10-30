@@ -43,7 +43,13 @@ class NoteRepository(private val dao: NoteDao) {
     }
 
     /** A note made from an imported audio file (e.g. a call recording). */
-    suspend fun createFromImport(transcript: String, audio: File, durationMs: Long, sourceName: String): Long {
+    suspend fun createFromImport(
+        transcript: String,
+        audioPath: String,
+        durationMs: Long,
+        sourceName: String,
+        sourceUri: String?,
+    ): Long {
         val now = System.currentTimeMillis()
         val noteId = dao.insert(
             Note(
@@ -52,12 +58,13 @@ class NoteRepository(private val dao: NoteDao) {
                 category = IMPORT_CATEGORY,
                 createdAt = now,
                 updatedAt = now,
+                sourceUri = sourceUri,
             )
         )
         dao.insertRecording(
             Recording(
                 noteId = noteId,
-                filePath = audio.absolutePath,
+                filePath = audioPath,
                 durationMs = durationMs,
                 transcript = transcript,
                 createdAt = now,
@@ -96,7 +103,8 @@ class NoteRepository(private val dao: NoteDao) {
         dao.update(note.copy(done = done, updatedAt = System.currentTimeMillis()))
 
     suspend fun delete(noteId: Long) {
-        dao.recordingsFor(noteId).forEach { it.filePath?.let { p -> File(p).delete() } }
+        // Deletes IdeaDrop's copy only — never the phone's original call recording
+        dao.recordingsFor(noteId).forEach { r -> r.filePath?.takeUnless { it.startsWith("content://") }?.let { File(it).delete() } }
         dao.delete(noteId)
     }
 
@@ -109,7 +117,7 @@ class NoteRepository(private val dao: NoteDao) {
 
     suspend fun deleteAudio(recordings: List<Recording>) {
         recordings.forEach { rec ->
-            rec.filePath?.let { File(it).delete() }
+            rec.filePath?.takeUnless { it.startsWith("content://") }?.let { File(it).delete() }
             dao.updateRecording(rec.copy(filePath = null))
         }
     }
@@ -119,8 +127,7 @@ class NoteRepository(private val dao: NoteDao) {
         const val IMPORT_CATEGORY = "Calls"
 
         /** "Call recording Amma_241030_153012.m4a" → "Call recording Amma 241030 153012" */
-        fun titleFromFileName(name: String): String =
-            name.substringBeforeLast('.').replace(Regex("[_]+"), " ").replace(Regex("\\s+"), " ").trim().take(60)
+        fun titleFromFileName(name: String): String = CallName.parse(name).title
         private const val TITLE_PREFIX = "Idea · "
 
         /** Openers that make bad titles ("I want to…", "Remind me to…"). */

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 0.4 |
-| **Status** | v0.3 app built (audio import); AI titles next |
+| **Version** | 0.5 |
+| **Status** | v0.4: Calls tab + crash fix; AI titles next |
 | **Platform** | Android (Kotlin + Jetpack Compose) |
 | **Last updated** | 2026-10-10 |
 
@@ -74,6 +74,9 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Languages: English, Kannada, Hindi, or **Mixed** | P0 | Mixed = engine switches language mid-sentence (Android 14+, phone engine must support it) |
 | Runs on the phone, in the background | P0 | Foreground service; ~as long as the audio; cancel anytime |
 | Original audio kept with the note, category "Calls" | P0 | Title from file name (Samsung names include the contact) |
+| **Calls tab**: all call recordings listed inside IdeaDrop, "To text" on any one | P0 | ✅ v0.4. One-time "Connect" to Recordings › Call (read-only folder access). Recordings are never copied, changed or deleted |
+| Converted calls kept as a separate list (not mixed with ideas) | P0 | ✅ v0.4. Calls tab › Converted |
+| Crash report saved and shareable from Home | P0 | ✅ v0.4 |
 | Who-said-what (speaker labels), summary | Future | Not possible with the phone engine; needs a cloud AI (P2, optional free key) |
 
 **Known limits:** call audio is low quality (phone-line sound, two people talking over each other), so accuracy will be lower than speaking into the app. Mixed-language accuracy depends on the phone's speech engine.
@@ -163,3 +166,4 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | 2026-10-10 | 0.2 | Audio cleanup (30 days, ask first), bedtime 10 PM–1 AM, Vosk for M1 speech, M1 scope expanded |
 | 2026-10-10 | 0.3 | Accuracy test: Vosk ~48% vs phone engine. Switched to phone's built-in engine (en-IN, Hindi, Kannada), My words, Record idea shortcut (side key / lock screen), better auto titles |
 | 2026-10-30 | 0.4 | Import audio files (call recordings) → text, English/Kannada/Hindi/Mixed, Share → IdeaDrop; Mixed language option for recording; phone download link (ideadrop-latest) |
+| 2026-10-31 | 0.5 | v0.3 crashed on Convert: hardened background service (Android start rule, fallbacks, thread-safe text), crash reporter. Calls tab reading Recordings/Call directly; converted calls listed separately; DB v2 (sourceUri) |

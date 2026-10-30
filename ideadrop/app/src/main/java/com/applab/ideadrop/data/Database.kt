@@ -15,6 +15,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** One idea. Can hold several voice recordings ("speak again under the same bucket"). */
@@ -27,6 +29,8 @@ data class Note(
     val done: Boolean = false,
     val createdAt: Long,
     val updatedAt: Long,
+    /** For call notes: the original recording (content:// URI) this text came from. */
+    val sourceUri: String? = null,
 )
 
 /** One voice clip attached to a note. Audio may be cleaned up later; the transcript stays. */
@@ -88,16 +92,26 @@ interface NoteDao {
     @Query("SELECT * FROM recordings WHERE noteId = :noteId")
     suspend fun recordingsFor(noteId: Long): List<Recording>
 
-    @Query("SELECT * FROM recordings WHERE filePath IS NOT NULL AND createdAt < :before")
+    /** Only IdeaDrop's own audio files; call recordings stay in the phone's folder untouched. */
+    @Query("SELECT * FROM recordings WHERE filePath IS NOT NULL AND filePath NOT LIKE 'content://%' AND createdAt < :before")
     suspend fun recordingsWithAudioBefore(before: Long): List<Recording>
 }
 
-@Database(entities = [Note::class, Recording::class], version = 1, exportSchema = false)
+@Database(entities = [Note::class, Recording::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
     companion object {
         fun create(context: Context): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, "ideadrop.db").build()
+            Room.databaseBuilder(context, AppDatabase::class.java, "ideadrop.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
+
+        /** v0.4: link call notes to their original recording. Keeps all existing notes. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notes ADD COLUMN sourceUri TEXT")
+            }
+        }
     }
 }

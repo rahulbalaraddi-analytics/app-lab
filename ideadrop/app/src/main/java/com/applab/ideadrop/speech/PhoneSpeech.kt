@@ -36,7 +36,8 @@ class PhoneSpeech(
 
     private val main = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
-    private val segments = mutableListOf<String>()
+    // Written on the main thread, read from background threads
+    private val segments = java.util.concurrent.CopyOnWriteArrayList<String>()
     @Volatile private var partial = ""
     @Volatile private var active = false
     @Volatile var mode: Mode? = null; private set
@@ -82,11 +83,17 @@ class PhoneSpeech(
     }
 
     private fun begin() {
-        recognizer?.destroy()
-        val r = SpeechRecognizer.createSpeechRecognizer(context)
-        r.setRecognitionListener(listener)
-        recognizer = r
-        r.startListening(buildIntent())
+        try {
+            recognizer?.destroy()
+            val r = SpeechRecognizer.createSpeechRecognizer(context)
+            r.setRecognitionListener(listener)
+            recognizer = r
+            r.startListening(buildIntent())
+        } catch (t: Throwable) {
+            // Engine missing or broken: end this session instead of crashing
+            if (mode == Mode.AUDIO_SOURCE && !gotText) { closePipe(); onAudioSourceFailed?.invoke() }
+            ended.complete(Unit)
+        }
     }
 
     private fun buildIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -124,7 +131,7 @@ class PhoneSpeech(
         segments += text.trim()
         gotText = true
         partial = ""
-        onLiveText(text())
+        runCatching { onLiveText(text()) }
     }
 
     private fun firstResult(b: Bundle?): String? =
@@ -133,10 +140,12 @@ class PhoneSpeech(
     private val listener = object : RecognitionListener {
         override fun onPartialResults(partialResults: Bundle?) {
             partial = firstResult(partialResults).orEmpty()
-            onLiveText(text())
+            runCatching { onLiveText(text()) }
         }
 
-        override fun onSegmentResults(segmentResults: Bundle) = addSegment(firstResult(segmentResults))
+        override fun onSegmentResults(segmentResults: Bundle) {
+            runCatching { addSegment(firstResult(segmentResults)) }
+        }
 
         override fun onEndOfSegmentedSession() { ended.complete(Unit) }
 

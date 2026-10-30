@@ -54,6 +54,7 @@ import com.applab.ideadrop.audio.ImportController
 import com.applab.ideadrop.audio.ImportState
 import com.applab.ideadrop.audio.RecState
 import com.applab.ideadrop.audio.RecordingController
+import com.applab.ideadrop.data.NoteRepository
 import com.applab.ideadrop.data.NoteWithRecordings
 import com.applab.ideadrop.export.ExportScope
 import com.applab.ideadrop.export.MarkdownExporter
@@ -81,13 +82,16 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
         if (uri != null) pickedAudio = uri
     }
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
+    var tab by rememberSaveable { mutableStateOf(0) } // 0 = Ideas, 1 = Calls
+    val crash by vm.crash.collectAsStateWithLifecycle()
     var showExport by remember { mutableStateOf(false) }
     var saveScope by remember { mutableStateOf(ExportScope.ALL) }
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
         if (uri != null) vm.saveTo(context, uri, saveScope)
     }
 
-    val visible = notes.filter {
+    val ideas = notes.filter { it.note.category != NoteRepository.IMPORT_CATEGORY && it.note.sourceUri == null }
+    val visible = ideas.filter {
         when (filter) {
             Filter.ALL -> true
             Filter.PENDING -> !it.note.done
@@ -116,7 +120,7 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
             )
         },
         floatingActionButton = {
-            if (recState == RecState.Idle) {
+            if (recState == RecState.Idle && tab == 0) {
                 LargeFloatingActionButton(onClick = { record(null) }) {
                     Icon(Icons.Default.Mic, contentDescription = "Record idea", modifier = Modifier.size(36.dp))
                 }
@@ -127,6 +131,28 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            crash?.let {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("IdeaDrop closed unexpectedly last time", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Send the report to Claude so it can be fixed.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            androidx.compose.material3.TextButton(onClick = { vm.dismissCrash() }) { Text("Dismiss") }
+                            androidx.compose.material3.Button(onClick = { vm.shareCrash(context) }) { Text("Send report") }
+                        }
+                    }
+                }
+            }
+            androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab) {
+                androidx.compose.material3.Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Ideas") })
+                androidx.compose.material3.Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Calls") })
+            }
             ImportCard(
                 state = importState,
                 onCancel = { ImportController.cancel(context) },
@@ -146,6 +172,16 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
                     )
                 }
             }
+            if (tab == 1) {
+                CallsTab(
+                    vm = vm,
+                    notes = notes,
+                    importState = importState,
+                    openNote = openNote,
+                    importOtherFile = { audioPicker.launch(arrayOf("audio/*")) },
+                )
+            } else {
+            Spacer(Modifier.height(8.dp))
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -156,7 +192,7 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
             }
 
             if (visible.isEmpty()) {
-                EmptyState(hasAny = notes.isNotEmpty())
+                EmptyState(hasAny = ideas.isNotEmpty())
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
@@ -181,6 +217,7 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
                     }
                 }
             }
+            } // end Ideas tab
         }
     }
 

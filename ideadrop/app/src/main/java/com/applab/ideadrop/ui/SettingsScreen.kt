@@ -156,7 +156,7 @@ fun SettingsScreen(vm: MainViewModel, back: () -> Unit) {
             }
 
             HorizontalDivider()
-            Hint("IdeaDrop 0.3 · Your notes stay on your phone unless you export them.")
+            Hint("IdeaDrop 0.4 · Your notes stay on your phone unless you export them.")
             Spacer(Modifier.height(24.dp))
         }
     }

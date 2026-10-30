@@ -21,6 +21,8 @@ data class AppSettings(
     val myWords: String = "",
     /** Can this phone's engine take streamed audio (keeps recordings)? -1 unknown, 0 no, 1 yes. */
     val audioStreaming: Int = -1,
+    /** Connected call-recordings folder (document-tree link), or "" if not connected. */
+    val callsFolder: String = "",
 ) {
     fun myWordsList(): List<String> = myWords.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
 }
@@ -39,6 +41,7 @@ class SettingsStore(context: Context) {
         language = prefs.getString("language", "en-IN") ?: "en-IN",
         myWords = prefs.getString("myWords", "") ?: "",
         audioStreaming = prefs.getInt("audioStreaming", -1),
+        callsFolder = prefs.getString("callsFolder", "") ?: "",
     )
 
     fun update(transform: (AppSettings) -> AppSettings) {
@@ -52,6 +55,7 @@ class SettingsStore(context: Context) {
             .putString("language", s.language)
             .putString("myWords", s.myWords)
             .putInt("audioStreaming", s.audioStreaming)
+            .putString("callsFolder", s.callsFolder)
             .apply()
         _state.value = s
     }

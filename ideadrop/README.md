@@ -4,14 +4,14 @@ Speak an idea anytime → it becomes text, saved with the date and time → expo
 
 **Offline and private:** speech-to-text runs on the phone. Nothing leaves the device unless you export it.
 
-## Features (v0.3)
+## Features (v0.4)
 
 | Feature | Status |
 |---|---|
 | One-tap voice recording (keeps going with the screen locked) | ✅ |
 | Speech-to-text with the phone's built-in engine: English (India/US), Hindi, Kannada | ✅ |
 | "Record idea" shortcut: side key, lock screen, home screen | ✅ |
-| **Import audio → text** (call recordings; English, Kannada, Hindi or mixed). Also Share → IdeaDrop | ✅ |
+| **Calls tab**: your call recordings listed in the app, tap **To text** (English, Kannada, Hindi or mixed). Also Share → IdeaDrop | ✅ |
 | Notes with date, time, title, category, done/pending | ✅ |
 | Add more to a note by voice or typing | ✅ |
 | Play back original audio | ✅ |
