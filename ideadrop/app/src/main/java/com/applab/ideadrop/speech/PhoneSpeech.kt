@@ -71,10 +71,10 @@ class PhoneSpeech(
     }
 
     /** Stops listening and returns the full text. In AUDIO_SOURCE mode, close the audio stream first. */
-    suspend fun finish(): String {
+    suspend fun finish(waitMs: Long = 4_000): String {
         active = false
         if (mode == Mode.MIC) main.post { recognizer?.stopListening() }
-        withTimeoutOrNull(4_000) { ended.await() }
+        withTimeoutOrNull(waitMs) { ended.await() }
         main.post { recognizer?.destroy(); recognizer = null }
         closePipe()
         partial = ""
@@ -91,7 +91,14 @@ class PhoneSpeech(
 
     private fun buildIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (language == MIXED) "en-IN" else language)
+        if (language == MIXED && Build.VERSION.SDK_INT >= 34) {
+            // Android 14+: detect and switch between English, Kannada and Hindi mid-conversation
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_DETECTION, true)
+            putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_DETECTION_ALLOWED_LANGUAGES, MIXED_LANGUAGES)
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED)
+            putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES, MIXED_LANGUAGES)
+        }
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
         putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5_000L)
@@ -194,6 +201,9 @@ class PhoneSpeech(
 
     companion object {
         const val SAMPLE_RATE = 16_000
+        /** English + Kannada + Hindi, switching mid-sentence (Android 14+). */
+        const val MIXED = "mixed"
+        private val MIXED_LANGUAGES = arrayListOf("en-IN", "kn-IN", "hi-IN")
         private const val MAX_RESTARTS = 500
 
         fun isAvailable(context: Context) = SpeechRecognizer.isRecognitionAvailable(context)

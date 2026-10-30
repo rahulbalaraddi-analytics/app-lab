@@ -4,13 +4,14 @@ Speak an idea anytime → it becomes text, saved with the date and time → expo
 
 **Offline and private:** speech-to-text runs on the phone. Nothing leaves the device unless you export it.
 
-## Features (v0.2)
+## Features (v0.3)
 
 | Feature | Status |
 |---|---|
 | One-tap voice recording (keeps going with the screen locked) | ✅ |
 | Speech-to-text with the phone's built-in engine: English (India/US), Hindi, Kannada | ✅ |
 | "Record idea" shortcut: side key, lock screen, home screen | ✅ |
+| **Import audio → text** (call recordings; English, Kannada, Hindi or mixed). Also Share → IdeaDrop | ✅ |
 | Notes with date, time, title, category, done/pending | ✅ |
 | Add more to a note by voice or typing | ✅ |
 | Play back original audio | ✅ |
@@ -25,9 +26,9 @@ See the full plan in [PRD.md](PRD.md).
 
 ## Install
 
-**Option A — download the APK (no Android Studio):**
-1. Repo → **Actions** → latest **IdeaDrop build** → download **IdeaDrop-debug-apk**
-2. Unzip, copy `app-debug.apk` to the phone, open it, allow "install unknown apps"
+**Option A — on the phone (no laptop):**
+1. Open [releases/tag/ideadrop-latest](https://github.com/rahulbalaraddi-analytics/app-lab/releases/tag/ideadrop-latest)
+2. Tap **IdeaDrop.apk** → open → allow "install unknown apps" → Install
 
 **Option B — Android Studio:**
 1. Clone the repo, then **File → Open** the `ideadrop` folder (not the repo root)

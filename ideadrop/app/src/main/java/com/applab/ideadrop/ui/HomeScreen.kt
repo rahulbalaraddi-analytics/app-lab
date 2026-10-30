@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
@@ -49,6 +50,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.applab.ideadrop.audio.ImportController
+import com.applab.ideadrop.audio.ImportState
 import com.applab.ideadrop.audio.RecState
 import com.applab.ideadrop.audio.RecordingController
 import com.applab.ideadrop.data.NoteWithRecordings
@@ -71,6 +74,12 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
     val cleanup by vm.cleanup.collectAsStateWithLifecycle()
     val record = rememberRecorder()
 
+    val importState by ImportController.state.collectAsStateWithLifecycle()
+    val sharedAudio by SharedAudio.pending.collectAsStateWithLifecycle()
+    var pickedAudio by remember { mutableStateOf<android.net.Uri?>(null) }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) pickedAudio = uri
+    }
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
     var showExport by remember { mutableStateOf(false) }
     var saveScope by remember { mutableStateOf(ExportScope.ALL) }
@@ -91,6 +100,12 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
             TopAppBar(
                 title = { Text("IdeaDrop", fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(
+                        onClick = { audioPicker.launch(arrayOf("audio/*")) },
+                        enabled = importState !is ImportState.Working,
+                    ) {
+                        Icon(Icons.Default.AudioFile, contentDescription = "Import audio")
+                    }
                     IconButton(onClick = { showExport = true }, enabled = notes.isNotEmpty()) {
                         Icon(Icons.Default.IosShare, contentDescription = "Export")
                     }
@@ -112,6 +127,12 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            ImportCard(
+                state = importState,
+                onCancel = { ImportController.cancel(context) },
+                onOpen = openNote,
+                onDismiss = { ImportController.clear() },
+            )
             val engineAvailable = remember { PhoneSpeech.isAvailable(context) }
             if (!engineAvailable) {
                 Card(
@@ -161,6 +182,16 @@ fun HomeScreen(vm: MainViewModel, openNote: (Long) -> Unit, openSettings: () -> 
                 }
             }
         }
+    }
+
+    (pickedAudio ?: sharedAudio)?.let { uri ->
+        ImportLanguageDialog(
+            onPick = { lang ->
+                vm.importAudio(context, uri, lang)
+                pickedAudio = null; SharedAudio.pending.value = null
+            },
+            onDismiss = { pickedAudio = null; SharedAudio.pending.value = null },
+        )
     }
 
     if (showExport) {

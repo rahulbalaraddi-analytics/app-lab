@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.applab.ideadrop.IdeaDropApp
 import com.applab.ideadrop.audio.AudioPlayer
+import com.applab.ideadrop.audio.ImportController
 import com.applab.ideadrop.data.AppSettings
 import com.applab.ideadrop.data.Note
 import com.applab.ideadrop.data.NoteRepository
@@ -76,6 +77,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissCleanup() { _cleanup.value = null }
+
+    // ---- Import audio (call recordings, voice notes…) ----
+
+    /** Copies the picked/shared file into the app, then converts it to text in the background. */
+    fun importAudio(context: Context, uri: Uri, language: String) = viewModelScope.launch {
+        val app = getApplication<IdeaDropApp>()
+        val copied = withContext(Dispatchers.IO) {
+            runCatching {
+                val name = displayName(context, uri)
+                val ext = name.substringAfterLast('.', "m4a").take(5).lowercase()
+                val dir = File(app.filesDir, "audio").apply { mkdirs() }
+                val file = File(dir, "import_${System.currentTimeMillis()}.$ext")
+                context.contentResolver.openInputStream(uri)!!.use { input ->
+                    file.outputStream().use { input.copyTo(it) }
+                }
+                file to name
+            }.getOrNull()
+        }
+        if (copied == null) {
+            android.widget.Toast.makeText(context, "Couldn't open that file", android.widget.Toast.LENGTH_LONG).show()
+        } else {
+            ImportController.start(context, copied.first, copied.second, language)
+        }
+    }
+
+    private fun displayName(context: Context, uri: Uri): String =
+        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            ?: uri.lastPathSegment?.substringAfterLast('/')
+            ?: "Audio"
 
     // ---- Export ----
 

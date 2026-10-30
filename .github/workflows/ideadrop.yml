@@ -7,6 +7,9 @@ on:
       - ".github/workflows/ideadrop.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +30,14 @@ jobs:
         with:
           name: IdeaDrop-debug-apk
           path: ideadrop/app/build/outputs/apk/debug/app-debug.apk
+      # Direct phone download link: github.com/<repo>/releases/tag/ideadrop-latest
+      - name: Publish APK to the ideadrop-latest download link
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk IdeaDrop.apk
+          gh release view ideadrop-latest >/dev/null 2>&1 || \
+            gh release create ideadrop-latest --prerelease --title "IdeaDrop test build" \
+              --notes "Latest IdeaDrop test build. Open this page on the phone, tap IdeaDrop.apk, install."
+          gh release upload ideadrop-latest IdeaDrop.apk --clobber

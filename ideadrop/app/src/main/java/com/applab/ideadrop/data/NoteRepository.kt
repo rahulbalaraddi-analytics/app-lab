@@ -42,6 +42,30 @@ class NoteRepository(private val dao: NoteDao) {
         return noteId
     }
 
+    /** A note made from an imported audio file (e.g. a call recording). */
+    suspend fun createFromImport(transcript: String, audio: File, durationMs: Long, sourceName: String): Long {
+        val now = System.currentTimeMillis()
+        val noteId = dao.insert(
+            Note(
+                title = titleFromFileName(sourceName).ifBlank { autoTitle(transcript, now) },
+                text = transcript,
+                category = IMPORT_CATEGORY,
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+        dao.insertRecording(
+            Recording(
+                noteId = noteId,
+                filePath = audio.absolutePath,
+                durationMs = durationMs,
+                transcript = transcript,
+                createdAt = now,
+            )
+        )
+        return noteId
+    }
+
     /** "Speak again under the same bucket": adds a clip and appends its text to the note. */
     suspend fun appendRecording(
         noteId: Long,
@@ -92,6 +116,11 @@ class NoteRepository(private val dao: NoteDao) {
 
     companion object {
         const val DAY_MS = 24L * 60 * 60 * 1000
+        const val IMPORT_CATEGORY = "Calls"
+
+        /** "Call recording Amma_241030_153012.m4a" → "Call recording Amma 241030 153012" */
+        fun titleFromFileName(name: String): String =
+            name.substringBeforeLast('.').replace(Regex("[_]+"), " ").replace(Regex("\\s+"), " ").trim().take(60)
         private const val TITLE_PREFIX = "Idea · "
 
         /** Openers that make bad titles ("I want to…", "Remind me to…"). */

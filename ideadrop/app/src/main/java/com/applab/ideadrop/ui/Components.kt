@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.applab.ideadrop.audio.ImportState
 import com.applab.ideadrop.audio.RecState
 import com.applab.ideadrop.audio.RecordingController
 import com.applab.ideadrop.export.ExportScope
@@ -210,4 +211,92 @@ fun CleanupDialog(prompt: CleanupPrompt, onDelete: () -> Unit, onKeep: () -> Uni
             }
         },
     )
+}
+
+/** Language for an imported audio file. Auto handles English, Kannada and Hindi mixed together. */
+@Composable
+fun ImportLanguageDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val options = listOf(
+        com.applab.ideadrop.speech.PhoneSpeech.MIXED to "Mixed: English + ಕನ್ನಡ + हिन्दी",
+        "en-IN" to "English",
+        "kn-IN" to "ಕನ್ನಡ Kannada",
+        "hi-IN" to "हिन्दी Hindi",
+    )
+    var choice by rememberSaveable { mutableStateOf(options.first().first) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Convert audio to text") },
+        text = {
+            Column {
+                Text("Which language is spoken?")
+                Spacer(Modifier.height(8.dp))
+                options.forEach { (code, label) ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .selectable(selected = choice == code, onClick = { choice = code })
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = choice == code, onClick = { choice = code })
+                        Text(label)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Runs on your phone. Takes about as long as the audio. You can lock the screen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = { Button(onClick = { onPick(choice) }) { Text("Convert") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** Progress / result card for an audio import, shown at the top of Home. */
+@Composable
+fun ImportCard(state: ImportState, onCancel: () -> Unit, onOpen: (Long) -> Unit, onDismiss: () -> Unit) {
+    if (state == ImportState.Idle) return
+    Surface(
+        tonalElevation = 3.dp,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            when (state) {
+                is ImportState.Working -> {
+                    Text("Converting: ${state.name}", fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { state.progress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (state.liveText.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "…" + state.liveText.takeLast(160),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onCancel) { Text("Cancel") }
+                    }
+                }
+                is ImportState.Done -> {
+                    Text(state.message, fontWeight = FontWeight.SemiBold)
+                    if (state.name.isNotBlank()) {
+                        Text(state.name, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onDismiss) { Text("OK") }
+                        state.noteId?.let { id -> Button(onClick = { onDismiss(); onOpen(id) }) { Text("Open") } }
+                    }
+                }
+                ImportState.Idle -> {}
+            }
+        }
+    }
 }

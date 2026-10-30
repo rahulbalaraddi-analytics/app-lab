@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 0.3 |
-| **Status** | v0.2 app built; AI titles next |
+| **Version** | 0.4 |
+| **Status** | v0.3 app built (audio import); AI titles next |
 | **Platform** | Android (Kotlin + Jetpack Compose) |
 | **Last updated** | 2026-10-10 |
 
@@ -65,6 +65,18 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | Free cloud transcription when online | P2 | Only if a free, keyless option exists |
 | Kannada, Hindi | P0 | Language choice in Settings (needs phone language pack). Hinglish: Future |
 | "My words" list | P0 | Names/terms hinted to the engine (Android 13+) |
+
+### 5.2b Import audio (call recordings, voice notes)
+
+| Feature | Priority | Notes |
+|---|---|---|
+| Import any audio file (m4a, mp3, amr, ogg, wav) → text note | P0 | ✅ v0.3. Import button on Home, or **Share → IdeaDrop** from Files / call recordings |
+| Languages: English, Kannada, Hindi, or **Mixed** | P0 | Mixed = engine switches language mid-sentence (Android 14+, phone engine must support it) |
+| Runs on the phone, in the background | P0 | Foreground service; ~as long as the audio; cancel anytime |
+| Original audio kept with the note, category "Calls" | P0 | Title from file name (Samsung names include the contact) |
+| Who-said-what (speaker labels), summary | Future | Not possible with the phone engine; needs a cloud AI (P2, optional free key) |
+
+**Known limits:** call audio is low quality (phone-line sound, two people talking over each other), so accuracy will be lower than speaking into the app. Mixed-language accuracy depends on the phone's speech engine.
 
 ### 5.3 Notes
 
@@ -150,3 +162,4 @@ A hands-free voice inbox: **speak → auto-transcribed → saved as a timestampe
 | 2026-10-10 | 0.1.1 | Sync test: confirmed Claude → GitHub push works |
 | 2026-10-10 | 0.2 | Audio cleanup (30 days, ask first), bedtime 10 PM–1 AM, Vosk for M1 speech, M1 scope expanded |
 | 2026-10-10 | 0.3 | Accuracy test: Vosk ~48% vs phone engine. Switched to phone's built-in engine (en-IN, Hindi, Kannada), My words, Record idea shortcut (side key / lock screen), better auto titles |
+| 2026-10-30 | 0.4 | Import audio files (call recordings) → text, English/Kannada/Hindi/Mixed, Share → IdeaDrop; Mixed language option for recording; phone download link (ideadrop-latest) |

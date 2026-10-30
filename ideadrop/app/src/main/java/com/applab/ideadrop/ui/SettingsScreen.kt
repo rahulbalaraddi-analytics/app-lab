@@ -47,6 +47,7 @@ private val LANGUAGES = listOf(
     "en-US" to "English (US)",
     "hi-IN" to "हिन्दी Hindi",
     "kn-IN" to "ಕನ್ನಡ Kannada",
+    com.applab.ideadrop.speech.PhoneSpeech.MIXED to "Mixed (English + ಕನ್ನಡ + हिन्दी)",
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -155,7 +156,7 @@ fun SettingsScreen(vm: MainViewModel, back: () -> Unit) {
             }
 
             HorizontalDivider()
-            Hint("IdeaDrop 0.2 · Your notes stay on your phone unless you export them.")
+            Hint("IdeaDrop 0.3 · Your notes stay on your phone unless you export them.")
             Spacer(Modifier.height(24.dp))
         }
     }

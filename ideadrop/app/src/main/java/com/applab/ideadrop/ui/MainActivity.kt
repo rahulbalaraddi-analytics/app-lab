@@ -26,6 +26,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleQuickRecord(intent)
+        handleSharedAudio(intent)
+    }
+
+    /** "Share → IdeaDrop" or "Open with IdeaDrop" on an audio file (e.g. a call recording). */
+    private fun handleSharedAudio(intent: Intent?) {
+        val uri = when (intent?.action) {
+            Intent.ACTION_SEND -> androidx.core.content.IntentCompat.getParcelableExtra(
+                intent, Intent.EXTRA_STREAM, android.net.Uri::class.java
+            )
+            Intent.ACTION_VIEW -> intent.data
+            else -> null
+        } ?: return
+        SharedAudio.pending.value = uri
     }
 
     /** Opened from "Record idea" (side key, lock screen, shortcut): start recording at once. */
@@ -44,7 +57,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (savedInstanceState == null) handleQuickRecord(intent)
+        if (savedInstanceState == null) {
+            handleQuickRecord(intent)
+            handleSharedAudio(intent)
+        }
         setContent {
             IdeaDropTheme {
                 val nav = rememberNavController()
