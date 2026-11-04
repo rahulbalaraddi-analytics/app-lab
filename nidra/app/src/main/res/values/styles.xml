@@ -1,0 +1,9 @@
+<resources>
+    <color name="night">#0E1022</color>
+    <style name="NidraTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:statusBarColor">@color/night</item>
+        <item name="android:navigationBarColor">@color/night</item>
+        <item name="android:colorAccent">#E0A35C</item>
+    </style>
+</resources>
