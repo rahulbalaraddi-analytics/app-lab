@@ -13,6 +13,12 @@ Android apps built from everyday ideas — offline-first, privacy-friendly, buil
 | Swipe Cleaner | Clean photos & videos with swipe gestures | ⏳ Moving in |
 | Nostalgica Games | Small, calm casual games | ⏳ Moving in |
 
+## Tools
+
+| Tool | What it does |
+|---|---|
+| [**Wi-Fi Speed Diagnosis**](wifi-speed-diagnosis/) | Is your Wi-Fi slow? A free 2-minute read-only check for Mac. Tells you if it's your Wi-Fi, your apps, or your router/internet provider, in plain English. |
+
 ## Structure
 
 Each app is a standalone Android Studio project in its own folder:
